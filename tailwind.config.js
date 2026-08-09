@@ -4,14 +4,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        encre: '#12141c',      // fond principal, bleu-noir profond
-        papier: '#f6f1e6',     // texte clair, ton papier
-        braise: '#c76b3f',     // accent chaleureux (couverture de livre)
-        sauge: '#7a8b6f',      // accent secondaire, discret
+        encre: '#0c0d13',       // fond principal, noir-encre profond
+        encreClair: '#15161f',  // surfaces légèrement surélevées (cartes)
+        papier: '#efe8d8',      // texte clair, ton parchemin
+        or: '#c9962b',          // accent primaire — dorure, discret
+        grenat: '#7d2e3a',      // accent secondaire — reliure de cuir
+        ligne: 'rgba(239,232,216,0.09)', // séparateurs
       },
       fontFamily: {
         display: ['"Fraunces"', 'serif'],
-        body: ['"Source Serif 4"', 'serif'],
+        body: ['"Spectral"', 'serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+      backgroundImage: {
+        grain: "radial-gradient(circle at 1px 1px, rgba(239,232,216,0.035) 1px, transparent 0)",
       },
     },
   },

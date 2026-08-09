@@ -41,33 +41,33 @@ export default function CommentSection({ chapitreId }) {
   }
 
   return (
-    <div className="mt-14 border-t border-white/10 pt-8">
-      <h3 className="font-display text-xl text-papier mb-4">Réactions des lecteurs</h3>
+    <div className="mt-16 pt-10 border-t border-ligne">
+      <h3 className="font-display text-2xl text-papier mb-6">Réactions des lecteurs</h3>
 
-      <form onSubmit={envoyer} className="flex gap-2 mb-6">
+      <form onSubmit={envoyer} className="flex gap-2 mb-8">
         <input
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           placeholder="Que penses-tu de ce chapitre ?"
-          className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-papier placeholder:text-papier/30 focus:outline-none focus:border-braise"
+          className="flex-1 bg-encreClair border border-ligne rounded-full px-4 py-2.5 text-sm text-papier placeholder:text-papier/30 focus:outline-none focus:border-or transition-colors"
         />
         <button
           type="submit"
-          className="bg-braise text-encre text-sm font-medium rounded px-4 hover:opacity-90 transition-opacity"
+          className="bg-or text-encre text-sm font-medium rounded-full px-5 hover:brightness-110 transition-all"
         >
           Envoyer
         </button>
       </form>
 
-      <ul className="space-y-4">
+      <ul className="space-y-5">
         {commentaires.map((c) => (
-          <li key={c.id} className="text-sm">
-            <span className="text-braise font-medium">{c.profiles?.pseudo ?? 'Lecteur'}</span>
-            <p className="text-papier/70">{c.contenu}</p>
+          <li key={c.id} className="text-sm border-l border-ligne pl-4">
+            <span className="text-or font-mono text-xs uppercase tracking-wide">{c.profiles?.pseudo ?? 'Lecteur'}</span>
+            <p className="text-papier/70 mt-1 leading-relaxed">{c.contenu}</p>
           </li>
         ))}
         {commentaires.length === 0 && (
-          <p className="text-papier/30 text-sm">Sois le premier à réagir.</p>
+          <p className="text-papier/30 text-sm font-mono">Sois le premier à réagir.</p>
         )}
       </ul>
     </div>

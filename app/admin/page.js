@@ -33,41 +33,42 @@ export default function AdminPage() {
 
   const champ = (label, field, type = 'text') => (
     <div>
-      <label className="text-xs text-papier/50 block mb-1">{label}</label>
+      <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
         <textarea
           value={form[field]}
           onChange={(e) => update(field, e.target.value)}
           rows={8}
-          className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-papier text-sm focus:outline-none focus:border-braise"
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-or transition-colors"
         />
       ) : (
         <input
           type={type}
           value={form[field]}
           onChange={(e) => update(field, type === 'number' ? Number(e.target.value) : e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-papier text-sm focus:outline-none focus:border-braise"
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
         />
       )}
     </div>
   )
 
   return (
-    <div className="px-6 py-10 max-w-xl mx-auto pb-24">
-      <h1 className="font-display text-3xl text-papier mb-1">Publier</h1>
-      <p className="text-papier/50 text-sm mb-8">
-        Accessible seulement à ton compte admin. Le roman est créé automatiquement
-        s'il n'existe pas encore (basé sur le "slug"), sinon le chapitre s'y ajoute.
+    <div className="px-6 pt-16 pb-24 max-w-xl mx-auto lever">
+      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
+      <h1 className="font-display text-4xl text-papier mb-2">Publier</h1>
+      <p className="text-papier/45 text-sm mb-10 leading-relaxed">
+        Le roman est créé automatiquement s'il n'existe pas encore (basé sur le "slug"),
+        sinon le chapitre s'y ajoute.
       </p>
 
-      <form onSubmit={envoyer} className="space-y-5">
-        <p className="text-braise text-xs uppercase tracking-wide">Le roman</p>
+      <form onSubmit={envoyer} className="space-y-6">
+        <p className="text-or text-xs font-mono uppercase tracking-widest">Le roman</p>
         {champ('Titre du roman', 'titre')}
-        {champ('Slug (identifiant dans l\'URL, ex: le-dernier-refuge)', 'slug')}
+        {champ("Slug (identifiant dans l'URL, ex: le-dernier-refuge)", 'slug')}
         {champ('Résumé court', 'resume', 'textarea')}
         {champ('Genre (libre : thriller, romance, aventure...)', 'genre')}
 
-        <p className="text-braise text-xs uppercase tracking-wide pt-4">Le chapitre</p>
+        <p className="text-or text-xs font-mono uppercase tracking-widest pt-4">Le chapitre</p>
         {champ('Numéro du chapitre', 'numero', 'number')}
         {champ('Titre du chapitre (optionnel)', 'chapitre_titre')}
         {champ('Texte du chapitre', 'contenu', 'textarea')}
@@ -76,13 +77,13 @@ export default function AdminPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-braise text-encre font-medium rounded px-3 py-3 hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full bg-or text-encre font-medium rounded-lg px-3 py-3.5 hover:brightness-110 transition-all disabled:opacity-50"
         >
           {loading ? 'Publication...' : 'Publier ce chapitre'}
         </button>
       </form>
 
-      {message && <p className="text-sm text-papier/70 mt-4">{message}</p>}
+      {message && <p className="text-sm text-papier/60 mt-4 font-mono">{message}</p>}
     </div>
   )
 }

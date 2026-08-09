@@ -8,23 +8,28 @@ export default async function CommunautePage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="px-6 py-12 max-w-2xl mx-auto">
-      <h1 className="font-display text-4xl text-papier mb-2">Communauté</h1>
-      <p className="text-papier/60 mb-10">
+    <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
+      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
+      <h1 className="font-display text-4xl text-papier mb-3">Communauté</h1>
+      <p className="text-papier/50 mb-12 leading-relaxed">
         Discutez des romans, échangez vos impressions, retrouvez d'autres lecteurs.
       </p>
 
-      <ul className="divide-y divide-white/10">
+      <div className="filet-or mb-8" />
+
+      <ul className="divide-y divide-ligne">
         {(discussions ?? []).map((d) => (
-          <li key={d.id} className="py-4">
-            <p className="text-papier">{d.titre}</p>
+          <li key={d.id} className="py-5">
+            <p className="text-papier text-lg font-display">{d.titre}</p>
             {d.romans?.titre && (
-              <p className="text-xs text-braise mt-1">à propos de « {d.romans.titre} »</p>
+              <p className="text-xs text-or font-mono uppercase tracking-wide mt-1.5">
+                à propos de « {d.romans.titre} »
+              </p>
             )}
           </li>
         ))}
         {(!discussions || discussions.length === 0) && (
-          <p className="text-papier/40 text-sm py-4">Aucune discussion pour le moment.</p>
+          <p className="text-papier/30 text-sm font-mono py-6">Aucune discussion pour le moment.</p>
         )}
       </ul>
     </div>
