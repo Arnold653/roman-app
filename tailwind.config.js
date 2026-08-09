@@ -4,12 +4,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        encre: '#0c0d13',       // fond principal, noir-encre profond
-        encreClair: '#15161f',  // surfaces légèrement surélevées (cartes)
-        papier: '#efe8d8',      // texte clair, ton parchemin
-        or: '#c9962b',          // accent primaire — dorure, discret
-        grenat: '#7d2e3a',      // accent secondaire — reliure de cuir
-        ligne: 'rgba(239,232,216,0.09)', // séparateurs
+        encre: '#0d0f12',       // fond principal, noir-charbon profond
+        encreClair: '#171a1e',  // surfaces légèrement surélevées (cartes)
+        papier: '#e9eaea',      // texte clair, gris clair
+        or: '#0079db',          // accent primaire — bleu
+        grenat: '#414544',      // accent secondaire — gris charbon
+        ligne: 'rgba(233,234,234,0.09)', // séparateurs
       },
       fontFamily: {
         display: ['"Fraunces"', 'serif'],

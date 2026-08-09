@@ -2,11 +2,11 @@
   <rect width="26" height="26" rx="6" fill="#12141c"/>
   <path
     d="M13 3C13 3 5.5 11.5 5.5 16.7C5.5 20.7541 8.86 24 13 24C17.14 24 20.5 20.7541 20.5 16.7C20.5 11.5 13 3 13 3Z"
-    fill="#c9962b"
+    fill="#0079db"
   />
   <path
     d="M10 15.2C10 12.9 11.6 10.6 13.1 8.7"
-    stroke="#efe8d8"
+    stroke="#e9eaea"
     strokeOpacity="0.3"
     strokeWidth="1.1"
     strokeLinecap="round"

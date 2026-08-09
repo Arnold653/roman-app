@@ -47,7 +47,7 @@ export default async function HomePage() {
               style={{
                 background: roman.couverture_url
                   ? undefined
-                  : `linear-gradient(155deg, ${teinteDe(roman.id)} 0%, #0c0d13 130%)`,
+                  : `linear-gradient(155deg, ${teinteDe(roman.id)} 0%, #0d0f12 130%)`,
               }}
             >
               {roman.couverture_url && (

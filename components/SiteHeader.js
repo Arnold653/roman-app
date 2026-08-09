@@ -39,12 +39,12 @@ export default function SiteHeader() {
           <svg width="24" height="26" viewBox="0 0 26 28" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M13 2C13 2 4.5 11.5 4.5 17.5C4.5 22.19 8.5 26 13.25 26C18 26 21.5 22.19 21.5 17.5C21.5 11.5 13 2 13 2Z"
-              fill="#c9962b"
+              fill="#0079db"
               className="transition-transform duration-300 group-hover:scale-105"
             />
             <path
               d="M9.8 15.5C9.8 12.8 11.6 10.2 13.4 8"
-              stroke="#efe8d8"
+              stroke="#e9eaea"
               strokeOpacity="0.35"
               strokeWidth="1.3"
               strokeLinecap="round"

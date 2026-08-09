@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
                 <svg width="18" height="20" viewBox="0 0 26 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path
                     d="M13 2C13 2 4.5 11.5 4.5 17.5C4.5 22.19 8.5 26 13.25 26C18 26 21.5 22.19 21.5 17.5C21.5 11.5 13 2 13 2Z"
-                    fill="#c9962b"
+                    fill="#0079db"
                   />
                 </svg>
                 <span className="font-display text-lg text-papier">Encre</span>

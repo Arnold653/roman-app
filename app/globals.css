@@ -9,15 +9,15 @@ html {
 }
 
 body {
-  background-color: #0c0d13;
-  background-image: radial-gradient(circle at 1px 1px, rgba(239,232,216,0.035) 1px, transparent 0);
+  background-color: #0d0f12;
+  background-image: radial-gradient(circle at 1px 1px, rgba(233,234,234,0.035) 1px, transparent 0);
   background-size: 22px 22px;
-  color: #efe8d8;
+  color: #e9eaea;
 }
 
 ::selection {
-  background: #c9962b;
-  color: #0c0d13;
+  background: #0079db;
+  color: #0d0f12;
 }
 
 /* Lettrine — première lettre d'un chapitre, style manuscrit enluminé */
@@ -29,13 +29,13 @@ body {
   line-height: 0.82;
   padding-right: 0.09em;
   padding-top: 0.06em;
-  color: #c9962b;
+  color: #0079db;
 }
 
 /* Ligne dorée fine, utilisée comme séparateur signature */
 .filet-or {
   height: 1px;
-  background: linear-gradient(90deg, #c9962b 0%, transparent 70%);
+  background: linear-gradient(90deg, #0079db 0%, transparent 70%);
 }
 
 @media (prefers-reduced-motion: no-preference) {
