@@ -69,6 +69,12 @@ export default function LoginPage() {
 
       {message && <p className="text-sm text-papier/50 mt-4 font-mono">{message}</p>}
 
+      <p className="text-[10px] text-papier/20 mt-6 font-mono break-all">
+        DEBUG URL: {String(process.env.NEXT_PUBLIC_SUPABASE_URL)}<br/>
+        DEBUG KEY (10 premiers car.): {String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY).slice(0, 10)}<br/>
+        DEBUG KEY (10 derniers car.): {String(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY).slice(-10)}
+      </p>
+
       <button
         onClick={() => setMode(mode === 'connexion' ? 'inscription' : 'connexion')}
         className="text-sm text-papier/40 hover:text-or mt-8 underline underline-offset-4 transition-colors"
