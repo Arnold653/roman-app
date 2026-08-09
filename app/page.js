@@ -8,13 +8,14 @@ export default async function HomePage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="px-6 py-12 max-w-5xl mx-auto">
-      <h1 className="font-display text-4xl md:text-5xl text-papier mb-2">
-        Une histoire chaque semaine.
+    <div className="px-6 py-16 max-w-5xl mx-auto">
+      <p className="text-braise text-xs uppercase tracking-widest mb-3">Un nouveau chapitre chaque semaine</p>
+      <h1 className="font-display text-4xl md:text-6xl text-papier mb-4 leading-tight">
+        Des histoires qui<br />se lisent à plusieurs.
       </h1>
       <p className="text-papier/60 mb-10 max-w-xl">
-        Des romans publiés chapitre après chapitre. Lisez, commentez, et retrouvez
-        d'autres lecteurs pour en discuter.
+        Suis un roman chapitre après chapitre, échange avec d'autres lecteurs,
+        et retrouve ceux qui partagent tes lectures.
       </p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
