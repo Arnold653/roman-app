@@ -3,11 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 // Dégradés générés automatiquement pour chaque couverture — cohérents avec la charte (bleu / charbon).
 // Aucune image à créer : la teinte est dérivée de l'id du roman, stable dans le temps.
 const DEGRADES = [
-  ['#0079db', '#0a1a2e'],
-  ['#1c8fe8', '#12141c'],
-  ['#004a91', '#0d0f12'],
-  ['#3aa6f0', '#0a1220'],
-  ['#0d5fae', '#171a1e'],
+  ['#1c9bf0', '#0b3a6b', '#050b16'],
+  ['#3ab0ff', '#0d3050', '#08101c'],
+  ['#0d6fc4', '#0a2540', '#050a12'],
+  ['#4fb3ff', '#0a2c52', '#060c16'],
+  ['#1584dd', '#0e2038', '#070d16'],
 ]
 
 function degradeDe(id) {
@@ -15,27 +15,45 @@ function degradeDe(id) {
   return DEGRADES[n % DEGRADES.length]
 }
 
-function CouvertureGeneree({ titre }) {
+function CouvertureGeneree({ id, titre }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
 
   return (
     <>
-      {/* Monogramme géant en filigrane — écho de la lettrine utilisée dans les chapitres */}
+      {/* Sheen diagonal — reflet façon jaquette vernie */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(115deg, rgba(255,255,255,0.14) 0%, transparent 28%, transparent 72%, rgba(255,255,255,0.05) 100%)' }}
+      />
+      {/* Vignette — assombrit les coins pour un rendu plus "imprimé" */}
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(120% 90% at 50% 30%, transparent 45%, rgba(0,0,0,0.35) 100%)' }}
+      />
+      {/* Scrim bas — garantit la lisibilité du titre */}
+      <div
+        className="absolute inset-x-0 bottom-0 h-2/5"
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}
+      />
+      {/* Grain fin */}
+      <div
+        className="absolute inset-0 opacity-[0.15] mix-blend-overlay"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)',
+          backgroundSize: '3px 3px',
+        }}
+      />
+      {/* Monogramme en filigrane — écho raffiné de la lettrine des chapitres */}
       <span
-        className="font-display absolute -right-3 -bottom-8 text-[9rem] leading-none text-papier/[0.07] select-none pointer-events-none"
+        className="font-display absolute right-4 top-4 text-[2.4rem] leading-none text-papier/[0.16] select-none pointer-events-none italic"
         aria-hidden="true"
+        style={{ WebkitTextStroke: '1px rgba(233,234,234,0.22)' }}
       >
         {initiale}
       </span>
-      {/* Grain discret, cohérent avec le fond du site */}
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(233,234,234,0.09) 1px, transparent 0)',
-          backgroundSize: '14px 14px',
-        }}
-      />
-      <div className="absolute left-5 top-5 w-8 h-[1.5px] bg-papier/30" />
+      {/* Cadre intérieur — fine bordure façon reliure premium */}
+      <div className="absolute inset-[6px] border border-papier/[0.12] pointer-events-none" />
+      <div className="absolute left-5 top-5 w-8 h-[1.5px] bg-papier/40" />
     </>
   )
 }
@@ -76,28 +94,31 @@ export default async function HomePage() {
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <div
-              className="relative aspect-[3/4.2] rounded-sm overflow-hidden mb-4 shadow-[6px_6px_0_0_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1.5 group-hover:shadow-[10px_10px_0_0_rgba(0,0,0,0.35)]"
+              className="relative aspect-[3/4.2] rounded-md overflow-hidden mb-4 shadow-[6px_6px_0_0_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1.5 group-hover:shadow-[10px_10px_0_0_rgba(0,0,0,0.35)]"
               style={{
                 background: roman.couverture_url
                   ? undefined
-                  : `linear-gradient(155deg, ${degradeDe(roman.id)[0]} 0%, ${degradeDe(roman.id)[1]} 130%)`,
+                  : `linear-gradient(160deg, ${degradeDe(roman.id)[0]} 0%, ${degradeDe(roman.id)[1]} 55%, ${degradeDe(roman.id)[2]} 100%)`,
               }}
             >
               {roman.couverture_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={roman.couverture_url} alt={roman.titre} className="absolute inset-0 w-full h-full object-cover" />
               ) : (
-                <CouvertureGeneree titre={roman.titre} />
+                <CouvertureGeneree id={roman.id} titre={roman.titre} />
               )}
               {/* tranche du livre */}
-              <div className="absolute left-0 top-0 bottom-0 w-2 bg-black/25" />
+              <div className="absolute left-0 top-0 bottom-0 w-2 bg-black/30" />
               <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                <span className="font-mono text-[0.65rem] uppercase tracking-widest text-papier/70 border border-papier/25 rounded-full px-2.5 py-1 self-start">
+                <span className="font-mono text-[0.65rem] uppercase tracking-widest text-papier/80 border border-papier/30 rounded-full px-2.5 py-1 self-start bg-black/10 backdrop-blur-sm">
                   {roman.genre}
                 </span>
-                <h2 className="font-display text-2xl text-papier leading-tight">
-                  {roman.titre}
-                </h2>
+                <div>
+                  <div className="w-6 h-[1.5px] bg-or/70 mb-3" />
+                  <h2 className="font-display text-2xl text-papier leading-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]">
+                    {roman.titre}
+                  </h2>
+                </div>
               </div>
             </div>
             <p className="text-sm text-papier/45 leading-relaxed line-clamp-2">{roman.resume}</p>
