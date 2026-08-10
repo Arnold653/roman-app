@@ -59,7 +59,7 @@ export default function RangStories() {
   const aDejaUneStory = groupes?.some((g) => g.stories[0]?.user_id === moi?.id)
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2 mb-10 -mx-6 px-6 scrollbar-hide">
+    <div className="flex gap-4 overflow-x-auto pb-2 mb-10 -mx-6 px-6 scrollbar-hide" data-tour="stories">
       {moi && (
         <button onClick={() => setAjoutOuvert(true)} className="flex flex-col items-center gap-1.5 shrink-0">
           <div className="relative">

@@ -1,10 +1,16 @@
 import './globals.css'
 import SiteHeader from '@/components/SiteHeader'
+import TourAccueil from '@/components/TourAccueil'
 
 export const metadata = {
   title: 'Encre — lire, discuter, partager',
   description: 'Une nouvelle histoire chaque semaine, à lire et à discuter en communauté.',
-  icons: { icon: '/favicon.svg' },
+  manifest: '/manifest.json',
+  icons: { icon: '/favicon.svg', apple: '/icon-192.png' },
+}
+
+export const viewport = {
+  themeColor: '#0d0f12',
 }
 
 export default function RootLayout({ children }) {
@@ -12,10 +18,25 @@ export default function RootLayout({ children }) {
     <html lang="fr">
       <body className="font-body min-h-screen flex flex-col">
         <SiteHeader />
+        <TourAccueil />
 
         <main className="flex-1">{children}</main>
 
         <footer className="border-t border-ligne mt-24 bg-encreClair/40">
+          <div className="max-w-6xl mx-auto px-6 pt-10">
+            <div className="rounded-lg border border-or/25 bg-gradient-to-br from-or/10 to-transparent px-6 py-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-or/15 flex items-center justify-center shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0079db" strokeWidth="2">
+                  <path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-papier text-sm font-medium">Installe Encre sur ton téléphone</p>
+                <p className="text-papier/45 text-xs mt-0.5">Menu du navigateur → "Ajouter à l'écran d'accueil"</p>
+              </div>
+            </div>
+          </div>
+
           <div className="max-w-6xl mx-auto px-6 py-14 grid sm:grid-cols-3 gap-10">
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -37,6 +58,7 @@ export default function RootLayout({ children }) {
               <ul className="space-y-2.5 text-papier/55">
                 <li><a href="/" className="hover:text-or transition-colors">Romans</a></li>
                 <li><a href="/communaute" className="hover:text-or transition-colors">Communauté</a></li>
+                <li><a href="/lecteurs" className="hover:text-or transition-colors">Découvrir</a></li>
                 <li><a href="/login" className="hover:text-or transition-colors">Se connecter</a></li>
               </ul>
             </div>

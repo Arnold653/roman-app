@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import ActiverPush from '@/components/ActiverPush'
 
 export default function ClocheNotifications({ connecte }) {
   const [ouvert, setOuvert] = useState(false)
@@ -52,6 +53,7 @@ export default function ClocheNotifications({ connecte }) {
           <p className="text-xs font-mono uppercase tracking-wide text-papier/40 px-4 py-3 border-b border-ligne">
             Notifications
           </p>
+          <ActiverPush />
           <ul className="max-h-96 overflow-y-auto divide-y divide-ligne">
             {notifications.map((n) => (
               <li key={n.id}>
