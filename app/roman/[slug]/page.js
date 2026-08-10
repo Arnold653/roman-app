@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import CommentSection from '@/components/CommentSection'
 
-export default async function RomanPage({ params }) {
+export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
 
   const { data: roman } = await supabase
@@ -21,6 +21,11 @@ export default async function RomanPage({ params }) {
     .order('numero', { ascending: true })
 
   const dernier = chapitres?.[chapitres.length - 1]
+  const numeroDemande = searchParams?.ch ? Number(searchParams.ch) : dernier?.numero
+  const courant = chapitres?.find((c) => c.numero === numeroDemande) || dernier
+  const index = chapitres?.findIndex((c) => c.id === courant?.id) ?? -1
+  const precedent = index > 0 ? chapitres[index - 1] : null
+  const suivant = index >= 0 && index < (chapitres?.length ?? 0) - 1 ? chapitres[index + 1] : null
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
@@ -35,39 +40,55 @@ export default async function RomanPage({ params }) {
       {chapitres && chapitres.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-12">
           {chapitres.map((c) => (
-            <span
+            <a
               key={c.id}
-              className={`font-mono text-xs rounded-full px-3 py-1 border ${
-                c.id === dernier.id ? 'border-or text-or' : 'border-papier/15 text-papier/35'
+              href={`/roman/${roman.slug}?ch=${c.numero}`}
+              className={`font-mono text-xs rounded-full px-3 py-1 border transition-colors ${
+                c.id === courant?.id ? 'border-or text-or' : 'border-papier/15 text-papier/35 hover:border-papier/35 hover:text-papier/60'
               }`}
             >
               Ch. {c.numero}
-            </span>
+            </a>
           ))}
         </div>
       )}
 
-      {dernier ? (
+      {courant ? (
         <article className="lever">
           <div className="filet-or mb-8" />
           <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-2">
-            Chapitre {dernier.numero}
+            Chapitre {courant.numero}
           </p>
-          {dernier.titre && (
-            <h2 className="font-display text-3xl text-papier mb-8">{dernier.titre}</h2>
+          {courant.titre && (
+            <h2 className="font-display text-3xl text-papier mb-8">{courant.titre}</h2>
           )}
 
           <div className="lettrine text-papier/85 text-[1.05rem] leading-[1.85] whitespace-pre-wrap">
-            {dernier.contenu}
+            {courant.contenu}
           </div>
 
-          {dernier.citation_fin && (
+          {courant.citation_fin && (
             <p className="mt-12 font-display italic text-xl text-papier/60 border-l-2 border-or/50 pl-5">
-              {dernier.citation_fin}
+              {courant.citation_fin}
             </p>
           )}
 
-          <CommentSection chapitreId={dernier.id} />
+          {(precedent || suivant) && (
+            <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
+              {precedent ? (
+                <a href={`/roman/${roman.slug}?ch=${precedent.numero}`} className="text-papier/50 hover:text-or transition-colors">
+                  ← Chapitre {precedent.numero}
+                </a>
+              ) : <span />}
+              {suivant ? (
+                <a href={`/roman/${roman.slug}?ch=${suivant.numero}`} className="text-papier/50 hover:text-or transition-colors">
+                  Chapitre {suivant.numero} →
+                </a>
+              ) : <span />}
+            </div>
+          )}
+
+          <CommentSection chapitreId={courant.id} />
         </article>
       ) : (
         <p className="text-papier/35 font-mono text-sm">Premier chapitre à venir bientôt.</p>

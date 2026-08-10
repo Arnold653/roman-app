@@ -1,10 +1,43 @@
 import { createClient } from '@/lib/supabase/server'
 
-const TEINTES = ['#7d2e3a', '#2e4d3f', '#243a5e', '#5c3a17', '#3a2e5c']
+// Dégradés générés automatiquement pour chaque couverture — cohérents avec la charte (bleu / charbon).
+// Aucune image à créer : la teinte est dérivée de l'id du roman, stable dans le temps.
+const DEGRADES = [
+  ['#0079db', '#0a1a2e'],
+  ['#1c8fe8', '#12141c'],
+  ['#004a91', '#0d0f12'],
+  ['#3aa6f0', '#0a1220'],
+  ['#0d5fae', '#171a1e'],
+]
 
-function teinteDe(id) {
+function degradeDe(id) {
   const n = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return TEINTES[n % TEINTES.length]
+  return DEGRADES[n % DEGRADES.length]
+}
+
+function CouvertureGeneree({ titre }) {
+  const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+
+  return (
+    <>
+      {/* Monogramme géant en filigrane — écho de la lettrine utilisée dans les chapitres */}
+      <span
+        className="font-display absolute -right-3 -bottom-8 text-[9rem] leading-none text-papier/[0.07] select-none pointer-events-none"
+        aria-hidden="true"
+      >
+        {initiale}
+      </span>
+      {/* Grain discret, cohérent avec le fond du site */}
+      <div
+        className="absolute inset-0 opacity-40"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(233,234,234,0.09) 1px, transparent 0)',
+          backgroundSize: '14px 14px',
+        }}
+      />
+      <div className="absolute left-5 top-5 w-8 h-[1.5px] bg-papier/30" />
+    </>
+  )
 }
 
 export default async function HomePage() {
@@ -47,12 +80,14 @@ export default async function HomePage() {
               style={{
                 background: roman.couverture_url
                   ? undefined
-                  : `linear-gradient(155deg, ${teinteDe(roman.id)} 0%, #0d0f12 130%)`,
+                  : `linear-gradient(155deg, ${degradeDe(roman.id)[0]} 0%, ${degradeDe(roman.id)[1]} 130%)`,
               }}
             >
-              {roman.couverture_url && (
+              {roman.couverture_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={roman.couverture_url} alt={roman.titre} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <CouvertureGeneree titre={roman.titre} />
               )}
               {/* tranche du livre */}
               <div className="absolute left-0 top-0 bottom-0 w-2 bg-black/25" />
