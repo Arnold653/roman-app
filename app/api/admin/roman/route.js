@@ -35,6 +35,21 @@ export async function PATCH(request) {
   const body = await request.json()
   const admin = createAdminClient()
 
+  if (body.type === 'nettoyage_titres') {
+    // Retire les tirets/deux-points en trop laissés au début des titres de chapitres
+    // (résidus d'anciens imports .md avant correction du parseur)
+    const { data: chapitres } = await admin.from('chapitres').select('id, titre')
+    let corriges = 0
+    for (const c of chapitres ?? []) {
+      const nettoye = (c.titre || '').replace(/^[\s:\-–—]+/, '').trim()
+      if (nettoye !== c.titre) {
+        await admin.from('chapitres').update({ titre: nettoye }).eq('id', c.id)
+        corriges++
+      }
+    }
+    return NextResponse.json({ ok: true, corriges })
+  }
+
   if (body.type === 'roman') {
     const { error } = await admin
       .from('romans')

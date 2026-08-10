@@ -113,6 +113,22 @@ export default function AdminPage() {
     }
   }
 
+  async function nettoyerTitres() {
+    if (!confirm('Retirer les tirets/deux-points en trop au début des titres de chapitres existants ?')) return
+    const res = await fetch('/api/admin/roman', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'nettoyage_titres' }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setMessage(`${data.corriges} titre(s) corrigé(s) ✓`)
+      chargerRomans()
+    } else {
+      setMessage(`Erreur : ${data.error}`)
+    }
+  }
+
   // --- Import .md ---
   function choisirFichier(e) {
     const fichier = e.target.files?.[0]
@@ -194,12 +210,20 @@ export default function AdminPage() {
         <h1 className="font-display text-4xl text-papier">
           {edition ? (edition.type === 'roman' ? 'Modifier le roman' : 'Modifier le chapitre') : modeChapitreSeul ? 'Nouveau chapitre' : 'Publier'}
         </h1>
-        <button
-          onClick={() => inputFichierRef.current?.click()}
-          className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors shrink-0"
-        >
-          Importer .md
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={nettoyerTitres}
+            className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
+          >
+            Nettoyer titres
+          </button>
+          <button
+            onClick={() => inputFichierRef.current?.click()}
+            className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
+          >
+            Importer .md
+          </button>
+        </div>
         <input ref={inputFichierRef} type="file" accept=".md,text/markdown" onChange={choisirFichier} className="hidden" />
       </div>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
