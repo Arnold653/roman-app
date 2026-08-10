@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import BoutonSuivre from '@/components/BoutonSuivre'
 
 function AvatarMonogramme({ pseudo }) {
   const initiale = (pseudo || '?').trim().charAt(0).toUpperCase()
@@ -22,6 +23,11 @@ export default async function ProfilPage({ params }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Lecteur introuvable.</div>
   }
 
+  const [{ count: abonnes }, { count: abonnements }] = await Promise.all([
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('suivi_id', profil.id),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profil.id),
+  ])
+
   const { data: commentaires } = await supabase
     .from('commentaires')
     .select('id, contenu, created_at, chapitres(numero, titre, romans(titre, slug))')
@@ -36,19 +42,27 @@ export default async function ProfilPage({ params }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
-      <div className="flex items-center gap-4 mb-2">
-        {profil.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profil.avatar_url} alt={profil.pseudo} className="w-16 h-16 rounded-full object-cover shrink-0" />
-        ) : (
-          <AvatarMonogramme pseudo={profil.pseudo} />
-        )}
-        <div>
-          <h1 className="font-display text-3xl text-papier">{profil.pseudo}</h1>
-          <p className="text-papier/35 text-xs font-mono mt-1">
-            Lecteur·rice depuis {new Date(profil.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-          </p>
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <div className="flex items-center gap-4">
+          {profil.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profil.avatar_url} alt={profil.pseudo} className="w-16 h-16 rounded-full object-cover shrink-0" />
+          ) : (
+            <AvatarMonogramme pseudo={profil.pseudo} />
+          )}
+          <div>
+            <h1 className="font-display text-3xl text-papier">{profil.pseudo}</h1>
+            <p className="text-papier/35 text-xs font-mono mt-1">
+              Lecteur·rice depuis {new Date(profil.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </p>
+          </div>
         </div>
+        <BoutonSuivre profilId={profil.id} />
+      </div>
+
+      <div className="flex gap-6 mt-6 font-mono text-sm">
+        <span className="text-papier/60"><b className="text-papier">{abonnes ?? 0}</b> abonnés</span>
+        <span className="text-papier/60"><b className="text-papier">{abonnements ?? 0}</b> abonnements</span>
       </div>
 
       {progression && progression.length > 0 && (

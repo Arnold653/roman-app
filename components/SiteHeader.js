@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ClocheNotifications from '@/components/ClocheNotifications'
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false)
@@ -85,23 +86,27 @@ export default function SiteHeader() {
           )}
         </nav>
 
-        {/* Bouton menu — mobile uniquement */}
-        <button
-          onClick={() => setOpen(!open)}
-          aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
-          aria-expanded={open}
-          className="sm:hidden text-papier p-1.5 -mr-1.5"
-        >
-          {open ? (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M6 6l12 12M18 6l-12 12" strokeLinecap="round" />
-            </svg>
-          ) : (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
-            </svg>
-          )}
-        </button>
+        <div className="flex items-center gap-1">
+          <ClocheNotifications connecte={!statut.loading && !!statut.user} />
+
+          {/* Bouton menu — mobile uniquement */}
+          <button
+            onClick={() => setOpen(!open)}
+            aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={open}
+            className="sm:hidden text-papier p-1.5"
+          >
+            {open ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M6 6l12 12M18 6l-12 12" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Menu déroulant — mobile uniquement */}

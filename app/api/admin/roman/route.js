@@ -155,5 +155,23 @@ export async function POST(request) {
     return NextResponse.json({ error: chapitreError.message }, { status: 400 })
   }
 
+  // Notifie les lecteurs qui suivent déjà ce roman (repérés via leur progression de lecture)
+  if (romanExistant) {
+    const { data: lecteurs } = await admin
+      .from('lecture_progress')
+      .select('user_id')
+      .eq('roman_id', roman.id)
+
+    if (lecteurs && lecteurs.length > 0) {
+      const notifs = lecteurs.map((l) => ({
+        user_id: l.user_id,
+        type: 'nouveau_chapitre',
+        contenu: `Nouveau chapitre disponible pour « ${roman.titre} ».`,
+        lien: `/roman/${roman.slug}?ch=${body.numero}`,
+      }))
+      await admin.from('notifications').insert(notifs)
+    }
+  }
+
   return NextResponse.json({ ok: true, slug: roman.slug })
 }

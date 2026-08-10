@@ -36,6 +36,11 @@ export default function CommentSection({ chapitreId }) {
       user_id: user.id,
       contenu: texte.trim(),
     })
+    fetch('/api/notify/comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chapitre_id: chapitreId }),
+    }).catch(() => {})
     setTexte('')
     charger()
   }
