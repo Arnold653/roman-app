@@ -13,24 +13,51 @@ export async function POST(request) {
   const body = await request.json()
   const admin = createAdminClient()
 
-  // Crée le roman s'il n'existe pas déjà (basé sur le slug), sinon récupère son id
-  const { data: roman, error: romanError } = await admin
+  // Cherche si le roman existe déjà (par slug)
+  const { data: romanExistant } = await admin
     .from('romans')
-    .upsert(
-      {
+    .select('*')
+    .eq('slug', body.slug)
+    .maybeSingle()
+
+  let roman = romanExistant
+
+  if (!roman) {
+    // Nouveau roman : titre, résumé et genre sont requis
+    const { data: nouveauRoman, error: creationError } = await admin
+      .from('romans')
+      .insert({
         titre: body.titre,
         slug: body.slug,
         resume: body.resume,
         genre: body.genre,
         niveau_theme: body.niveau_theme || 1,
-      },
-      { onConflict: 'slug' }
-    )
-    .select()
-    .single()
+      })
+      .select()
+      .single()
 
-  if (romanError) {
-    return NextResponse.json({ error: romanError.message }, { status: 400 })
+    if (creationError) {
+      return NextResponse.json({ error: creationError.message }, { status: 400 })
+    }
+    roman = nouveauRoman
+  } else if (body.titre || body.resume || body.genre) {
+    // Roman existant : on ne met à jour que les champs explicitement fournis
+    const misAJour = {}
+    if (body.titre) misAJour.titre = body.titre
+    if (body.resume) misAJour.resume = body.resume
+    if (body.genre) misAJour.genre = body.genre
+
+    const { data: romanMaj, error: majError } = await admin
+      .from('romans')
+      .update(misAJour)
+      .eq('id', roman.id)
+      .select()
+      .single()
+
+    if (majError) {
+      return NextResponse.json({ error: majError.message }, { status: 400 })
+    }
+    roman = romanMaj
   }
 
   const { error: chapitreError } = await admin.from('chapitres').insert({
