@@ -40,6 +40,9 @@ export default async function ProfilPage({ params }) {
     .select('dernier_chapitre, romans(titre, slug)')
     .eq('user_id', profil.id)
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const estMonProfil = user?.id === profil.id
+
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
       <div className="flex items-start justify-between gap-4 mb-2">
@@ -57,8 +60,16 @@ export default async function ProfilPage({ params }) {
             </p>
           </div>
         </div>
-        <BoutonSuivre profilId={profil.id} />
+        {estMonProfil ? (
+          <a href="/profil/modifier" className="text-sm border border-ligne rounded-full px-5 py-2 text-papier/60 hover:border-or hover:text-or transition-colors">
+            Modifier
+          </a>
+        ) : (
+          <BoutonSuivre profilId={profil.id} />
+        )}
       </div>
+
+      {profil.bio && <p className="text-papier/65 text-sm leading-relaxed mt-4 max-w-md">{profil.bio}</p>}
 
       <div className="flex gap-6 mt-6 font-mono text-sm">
         <span className="text-papier/60"><b className="text-papier">{abonnes ?? 0}</b> abonnés</span>

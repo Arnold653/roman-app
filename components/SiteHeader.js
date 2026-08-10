@@ -59,6 +59,7 @@ export default function SiteHeader() {
         <nav className="hidden sm:flex items-center gap-8 text-sm text-papier/60 font-mono uppercase tracking-wide">
           <a href="/" className="hover:text-or transition-colors">Romans</a>
           <a href="/communaute" className="hover:text-or transition-colors">Communauté</a>
+          <a href="/lecteurs" className="hover:text-or transition-colors">Découvrir</a>
 
           {statut.isAdmin && (
             <a href="/admin" className="hover:text-or transition-colors">Admin</a>
@@ -119,11 +120,20 @@ export default function SiteHeader() {
             <a href="/admin" onClick={() => setOpen(false)} className="hover:text-or transition-colors">Admin</a>
           )}
 
+          <a href="/lecteurs" onClick={() => setOpen(false)} className="hover:text-or transition-colors">Découvrir</a>
+
           {!statut.loading && statut.user ? (
             <>
-              <span className="normal-case font-body tracking-normal text-papier/45 text-[0.9rem]">
-                Connecté·e — {nomAffiche}
-              </span>
+              <a
+                href={`/profil/${nomAffiche}`}
+                onClick={() => setOpen(false)}
+                className="normal-case font-body tracking-normal text-papier/80 text-[0.95rem] flex items-center gap-2"
+              >
+                <span className="w-6 h-6 rounded-full bg-gradient-to-br from-or to-[#0a1a2e] flex items-center justify-center text-[0.65rem] font-display text-papier shrink-0">
+                  {nomAffiche?.charAt(0).toUpperCase()}
+                </span>
+                Voir mon profil
+              </a>
               <button
                 onClick={deconnexion}
                 className="text-encre bg-or rounded-full px-4 py-2.5 text-center normal-case font-body tracking-normal text-[0.95rem] mt-1"
