@@ -16,8 +16,8 @@ export default async function ProfilPage({ params }) {
   const { data: profil } = await supabase
     .from('profiles')
     .select('*')
-    .eq('pseudo', params.pseudo)
-    .single()
+    .ilike('pseudo', params.pseudo.trim())
+    .maybeSingle()
 
   if (!profil) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Lecteur introuvable.</div>

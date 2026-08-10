@@ -10,7 +10,7 @@ export default function StoriesPage({ params }) {
 
   useEffect(() => {
     async function charger() {
-      const { data: profil } = await supabase.from('profiles').select('id, pseudo, avatar_url').eq('pseudo', params.pseudo).single()
+      const { data: profil } = await supabase.from('profiles').select('id, pseudo, avatar_url').ilike('pseudo', params.pseudo.trim()).maybeSingle()
       if (!profil) {
         setStories([])
         return

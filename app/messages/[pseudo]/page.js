@@ -43,8 +43,8 @@ export default function ConversationPage({ params }) {
     const { data: profilAutre } = await supabase
       .from('profiles')
       .select('id, pseudo, avatar_url')
-      .eq('pseudo', params.pseudo)
-      .single()
+      .ilike('pseudo', params.pseudo.trim())
+      .maybeSingle()
 
     if (!profilAutre) {
       setPret(true)
