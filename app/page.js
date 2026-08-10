@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import RangStories from '@/components/RangStories'
 
 // Dégradés générés automatiquement pour chaque couverture — cohérents avec la charte (bleu / charbon).
 // Aucune image à créer : la teinte est dérivée de l'id du roman, stable dans le temps.
@@ -67,6 +68,8 @@ export default async function HomePage() {
 
   return (
     <div className="px-6 pt-20 pb-24 max-w-6xl mx-auto">
+      <RangStories />
+
       <div className="lever max-w-2xl mb-20">
         <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-5">
           Un nouveau chapitre chaque semaine

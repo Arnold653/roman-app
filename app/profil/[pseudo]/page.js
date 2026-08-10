@@ -65,7 +65,12 @@ export default async function ProfilPage({ params }) {
             Modifier
           </a>
         ) : (
-          <BoutonSuivre profilId={profil.id} />
+          <div className="flex gap-2 shrink-0">
+            <a href={`/messages/${profil.pseudo}`} className="text-sm border border-ligne rounded-full px-4 py-2 text-papier/60 hover:border-or hover:text-or transition-colors">
+              Message
+            </a>
+            <BoutonSuivre profilId={profil.id} />
+          </div>
         )}
       </div>
 

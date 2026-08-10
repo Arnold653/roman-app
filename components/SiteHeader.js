@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ClocheNotifications from '@/components/ClocheNotifications'
+import IconeMessages from '@/components/IconeMessages'
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false)
@@ -58,6 +59,7 @@ export default function SiteHeader() {
         {/* Nav complète — visible seulement à partir des écrans moyens */}
         <nav className="hidden sm:flex items-center gap-8 text-sm text-papier/60 font-mono uppercase tracking-wide">
           <a href="/" className="hover:text-or transition-colors">Romans</a>
+          {statut.user && <a href="/fil" className="hover:text-or transition-colors">Fil</a>}
           <a href="/communaute" className="hover:text-or transition-colors">Communauté</a>
           <a href="/lecteurs" className="hover:text-or transition-colors">Découvrir</a>
 
@@ -88,6 +90,7 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-1">
+          <IconeMessages connecte={!statut.loading && !!statut.user} />
           <ClocheNotifications connecte={!statut.loading && !!statut.user} />
 
           {/* Bouton menu — mobile uniquement */}
@@ -114,6 +117,7 @@ export default function SiteHeader() {
       {open && (
         <nav className="sm:hidden border-t border-ligne px-6 py-5 flex flex-col gap-4 font-mono uppercase tracking-wide text-sm text-papier/70">
           <a href="/" onClick={() => setOpen(false)} className="hover:text-or transition-colors">Romans</a>
+          {statut.user && <a href="/fil" onClick={() => setOpen(false)} className="hover:text-or transition-colors">Fil</a>}
           <a href="/communaute" onClick={() => setOpen(false)} className="hover:text-or transition-colors">Communauté</a>
 
           {statut.isAdmin && (
