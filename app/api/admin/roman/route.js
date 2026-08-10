@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { envoyerPush } from '@/lib/push'
 import { NextResponse } from 'next/server'
 
 async function verifierAdmin() {
@@ -16,7 +17,7 @@ export async function GET() {
   const admin = createAdminClient()
   const { data: romans, error } = await admin
     .from('romans')
-    .select('*, chapitres(id, numero, titre, contenu, citation_fin)')
+    .select('*, chapitres(id, numero, titre, contenu, citation_fin, publie_le)')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -48,6 +49,7 @@ export async function PATCH(request) {
         titre: body.chapitre_titre,
         contenu: body.contenu,
         citation_fin: body.citation_fin,
+        publie_le: body.publie_le || new Date().toISOString(),
       })
       .eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -143,20 +145,25 @@ export async function POST(request) {
     roman = romanMaj
   }
 
+  const publieLe = body.publie_le ? new Date(body.publie_le) : new Date()
+  const estImmediat = publieLe <= new Date()
+
   const { error: chapitreError } = await admin.from('chapitres').insert({
     roman_id: roman.id,
     numero: body.numero,
     titre: body.chapitre_titre,
     contenu: body.contenu,
     citation_fin: body.citation_fin,
+    publie_le: publieLe.toISOString(),
+    notifie: estImmediat, // si programmé, la tâche planifiée notifiera au bon moment
   })
 
   if (chapitreError) {
     return NextResponse.json({ error: chapitreError.message }, { status: 400 })
   }
 
-  // Notifie les lecteurs qui suivent déjà ce roman (repérés via leur progression de lecture)
-  if (romanExistant) {
+  // Notifie immédiatement seulement si le chapitre est publié tout de suite (pas programmé)
+  if (romanExistant && estImmediat) {
     const { data: lecteurs } = await admin
       .from('lecture_progress')
       .select('user_id')
@@ -170,6 +177,11 @@ export async function POST(request) {
         lien: `/roman/${roman.slug}?ch=${body.numero}`,
       }))
       await admin.from('notifications').insert(notifs)
+      await Promise.all(
+        lecteurs.map((l) =>
+          envoyerPush(l.user_id, roman.titre, `Nouveau chapitre disponible.`, `/roman/${roman.slug}?ch=${body.numero}`)
+        )
+      )
     }
   }
 

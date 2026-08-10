@@ -21,6 +21,7 @@ export default async function RomanPage({ params, searchParams }) {
     .from('chapitres')
     .select('*')
     .eq('roman_id', roman.id)
+    .lte('publie_le', new Date().toISOString())
     .order('numero', { ascending: true })
 
   const dernier = chapitres?.[chapitres.length - 1]
