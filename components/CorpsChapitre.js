@@ -29,7 +29,11 @@ function decouperEnParagraphes(texte) {
 
     for (const ligne of lignes) {
       const estDialogue = /^[—–-]\s/.test(ligne)
-      if (estDialogue) {
+      const estSeparateur = /^(---+|\*\*\*+|___+)$/.test(ligne)
+      if (estSeparateur) {
+        if (courant) { paragraphes.push(courant); courant = '' }
+        paragraphes.push('§SEPARATEUR§')
+      } else if (estDialogue) {
         if (courant) paragraphes.push(courant)
         paragraphes.push(ligne)
         courant = ''
@@ -49,6 +53,14 @@ export default function CorpsChapitre({ texte }) {
   return (
     <div className="text-papier/85 text-[1.05rem] leading-[1.85] space-y-5 text-justify">
       {paragraphes.map((p, i) => {
+        if (p === '§SEPARATEUR§') {
+          return (
+            <p key={i} className="text-center text-or/40 tracking-[0.5em] text-xs py-2" aria-hidden="true">
+               · · ·
+            </p>
+          )
+        }
+
         const estDialogue = /^[—–-]\s/.test(p)
 
         if (i === 0 && p.length > 0) {

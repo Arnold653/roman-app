@@ -3,6 +3,7 @@ import CommentSection from '@/components/CommentSection'
 import CorpsChapitre from '@/components/CorpsChapitre'
 import BoutonLike from '@/components/BoutonLike'
 import SuiviLecture from '@/components/SuiviLecture'
+import LectureAudio from '@/components/LectureAudio'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -74,9 +75,11 @@ export default async function RomanPage({ params, searchParams }) {
             Chapitre {courant.numero}
           </p>
           {courant.titre && (
-            <h2 className="font-display text-3xl text-papier mb-8">{courant.titre}</h2>
+            <h2 className="font-display text-3xl text-papier mb-4">{courant.titre}</h2>
           )}
-
+          <div className={courant.titre ? 'mb-8' : 'mb-8 mt-2'}>
+            <LectureAudio texte={courant.contenu} titre={courant.titre} />
+          </div>
           <CorpsChapitre texte={courant.contenu} />
 
           {courant.citation_fin && (
