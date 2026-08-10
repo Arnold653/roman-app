@@ -62,7 +62,12 @@ export default function CommentSection({ chapitreId }) {
       <ul className="space-y-5">
         {commentaires.map((c) => (
           <li key={c.id} className="text-sm border-l border-ligne pl-4">
-            <span className="text-or font-mono text-xs uppercase tracking-wide">{c.profiles?.pseudo ?? 'Lecteur'}</span>
+            <a
+              href={`/profil/${c.profiles?.pseudo ?? ''}`}
+              className="text-or font-mono text-xs uppercase tracking-wide hover:brightness-125 transition-all"
+            >
+              {c.profiles?.pseudo ?? 'Lecteur'}
+            </a>
             <p className="text-papier/70 mt-1 leading-relaxed">{c.contenu}</p>
           </li>
         ))}

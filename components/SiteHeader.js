@@ -65,7 +65,7 @@ export default function SiteHeader() {
 
           {!statut.loading && statut.user ? (
             <div className="flex items-center gap-4 normal-case font-body tracking-normal">
-              <span className="text-papier/50 text-[0.9rem]">{nomAffiche}</span>
+              <a href={`/profil/${nomAffiche}`} className="text-papier/50 hover:text-or transition-colors text-[0.9rem]">{nomAffiche}</a>
               <button
                 onClick={deconnexion}
                 className="text-papier border border-papier/20 rounded-full px-4 py-1.5 hover:border-or hover:text-or transition-colors text-[0.9rem]"

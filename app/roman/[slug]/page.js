@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import CommentSection from '@/components/CommentSection'
 import CorpsChapitre from '@/components/CorpsChapitre'
+import BoutonLike from '@/components/BoutonLike'
+import SuiviLecture from '@/components/SuiviLecture'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -56,6 +58,7 @@ export default async function RomanPage({ params, searchParams }) {
 
       {courant ? (
         <article className="lever">
+          <SuiviLecture romanId={roman.id} numeroChapitre={courant.numero} />
           <div className="filet-or mb-8" />
           <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-2">
             Chapitre {courant.numero}
@@ -71,6 +74,10 @@ export default async function RomanPage({ params, searchParams }) {
               {courant.citation_fin}
             </p>
           )}
+
+          <div className="mt-10">
+            <BoutonLike chapitreId={courant.id} />
+          </div>
 
           {(precedent || suivant) && (
             <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
