@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import CommentSection from '@/components/CommentSection'
+import CorpsChapitre from '@/components/CorpsChapitre'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -63,9 +64,7 @@ export default async function RomanPage({ params, searchParams }) {
             <h2 className="font-display text-3xl text-papier mb-8">{courant.titre}</h2>
           )}
 
-          <div className="lettrine text-papier/85 text-[1.05rem] leading-[1.85] whitespace-pre-wrap">
-            {courant.contenu}
-          </div>
+          <CorpsChapitre texte={courant.contenu} />
 
           {courant.citation_fin && (
             <p className="mt-12 font-display italic text-xl text-papier/60 border-l-2 border-or/50 pl-5">
