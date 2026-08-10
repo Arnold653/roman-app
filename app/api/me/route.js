@@ -9,8 +9,10 @@ export async function GET() {
     return NextResponse.json({ user: null, isAdmin: false })
   }
 
+  const { data: profil } = await supabase.from('profiles').select('pseudo, avatar_url').eq('id', user.id).single()
+
   return NextResponse.json({
-    user: { email: user.email, pseudo: user.user_metadata?.pseudo || null },
+    user: { email: user.email, pseudo: profil?.pseudo || null, avatar_url: profil?.avatar_url || null },
     isAdmin: user.email === process.env.ADMIN_EMAIL,
   })
 }

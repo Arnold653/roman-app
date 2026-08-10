@@ -32,13 +32,22 @@ export default async function RomanPage({ params, searchParams }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
-      <div className="mb-12 lever">
-        <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/30 rounded-full px-2.5 py-1">
-          {roman.genre}
-        </span>
-        <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-3 leading-tight">{roman.titre}</h1>
-        <p className="text-papier/50 leading-relaxed">{roman.resume}</p>
-      </div>
+      {courant?.numero === chapitres?.[0]?.numero ? (
+        <div className="mb-12 lever">
+          <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/30 rounded-full px-2.5 py-1">
+            {roman.genre}
+          </span>
+          <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-3 leading-tight">{roman.titre}</h1>
+          <p className="text-papier/50 leading-relaxed">{roman.resume}</p>
+        </div>
+      ) : (
+        <div className="mb-10 lever flex items-baseline justify-between gap-4">
+          <h1 className="font-display text-2xl text-papier/70">{roman.titre}</h1>
+          <a href={`/roman/${roman.slug}?ch=${chapitres?.[0]?.numero}`} className="text-xs font-mono text-papier/30 hover:text-or transition-colors shrink-0">
+            Voir le résumé
+          </a>
+        </div>
+      )}
 
       {chapitres && chapitres.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-12">
