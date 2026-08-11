@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CorpsChapitre from './CorpsChapitre'
+import LectureAudio from './LectureAudio'
 
 // Regroupe les items de texte d'une page PDF en lignes, selon leur coordonnée verticale
 // (transform[5]). Chaque ligne garde aussi une taille de police approximative (dérivée de la
@@ -56,6 +57,16 @@ function ressembleAUnTitre(texte, taille, tailleCorps) {
   return grande || toutMajuscules
 }
 
+// Niveau hiérarchique d'un titre détecté : 1 = grande division (Partie/Section), 2 = chapitre
+// ou grand bloc éditorial (dédicace, avant-propos, introduction, bonus...) qui démarre une
+// nouvelle "page" de lecture, 3 = simple sous-titre affiché à l'intérieur d'une page.
+function niveauTitre(texte) {
+  const t = texte.trim()
+  if (/^(partie|section)\s*[ivxlcdm\d]*\b/i.test(t)) return 1
+  if (/^(chapitre|d[ée]dicace|avant[- ]propos|introduction|pr[ée]face|prologue|[ée]pilogue|conclusion|remerciements|annexe|bonus)\b/i.test(t)) return 2
+  return 3
+}
+
 // Regroupe les lignes d'une page en paragraphes selon l'écart vertical entre elles (un écart
 // nettement plus grand que la normale = saut de paragraphe), en isolant les titres détectés.
 function regrouperEnParagraphes(lignes, tailleCorps) {
@@ -84,7 +95,7 @@ function regrouperEnParagraphes(lignes, tailleCorps) {
     const tailleMoyenne = bloc.reduce((a, l) => a + l.taille, 0) / bloc.length
     // Un titre est presque toujours seul dans son bloc (une ligne entourée de blancs)
     const titre = bloc.length === 1 && ressembleAUnTitre(texte, tailleMoyenne, tailleCorps)
-    return { texte, titre }
+    return { texte, titre, niveau: titre ? niveauTitre(texte) : null }
   }).filter((p) => p.texte.length > 0)
 }
 
@@ -107,12 +118,48 @@ function fusionnerPages(paragraphesParPage) {
   return resultat
 }
 
+// Un libellé court pour la pastille de navigation, à partir du titre détecté.
+function libellePastille(texte) {
+  const t = texte.trim()
+  const mChap = t.match(/^chapitre\s+(\d+)/i)
+  if (mChap) return `Ch. ${mChap[1]}`
+  const mPartie = t.match(/^partie\s+([ivxlcdm\d]+)/i)
+  if (mPartie) return `Partie ${mPartie[1]}`
+  const mots = t.split(/\s+/).slice(0, 2).join(' ')
+  return mots.length > 16 ? mots.slice(0, 16) + '…' : mots
+}
+
+// Découpe le livre entier en "pages de lecture" aux frontières des titres de niveau 1 ou 2
+// (Partie, Chapitre, Dédicace, Avant-propos...), pour éviter un défilement infini.
+function decouperEnSections(paragraphes) {
+  const frontieres = paragraphes
+    .map((p, i) => ({ titre: p.titre, niveau: p.niveau, i }))
+    .filter((p) => p.titre && p.niveau <= 2)
+    .map((p) => p.i)
+
+  const bornes = frontieres[0] === 0 ? frontieres : [0, ...frontieres]
+
+  return bornes.map((debut, k) => {
+    const fin = k + 1 < bornes.length ? bornes[k + 1] : paragraphes.length
+    const blocs = paragraphes.slice(debut, fin)
+    const premierEstTitre = blocs[0]?.titre && blocs[0].niveau <= 2
+    return {
+      debut,
+      fin,
+      blocs,
+      pilLabel: premierEstTitre ? libellePastille(blocs[0].texte) : 'Début',
+    }
+  })
+}
+
 export default function LecteurPDF({ url }) {
-  const [texte, setTexte] = useState(null)
+  const [sections, setSections] = useState(null)
   const [tableMatieres, setTableMatieres] = useState([])
+  const [sectionIndex, setSectionIndex] = useState(0)
   const [chargement, setChargement] = useState(true)
   const [progression, setProgression] = useState(0)
   const [erreur, setErreur] = useState('')
+  const cibleScrollRef = useRef(null)
 
   useEffect(() => {
     let annule = false
@@ -150,17 +197,13 @@ export default function LecteurPDF({ url }) {
         if (annule) return
 
         const paragraphesFusionnes = fusionnerPages(paragraphesParPage)
-
-        const toc = []
-        const texteFinal = paragraphesFusionnes
-          .map((p, i) => {
-            if (p.titre) toc.push({ texte: p.texte, index: i })
-            return p.titre ? `§TITRE§${p.texte}` : p.texte
-          })
-          .join('\n\n')
+        const toc = paragraphesFusionnes
+          .map((p, i) => ({ ...p, i }))
+          .filter((p) => p.titre)
+          .map((p) => ({ texte: p.texte, niveau: p.niveau, index: p.i }))
 
         setTableMatieres(toc)
-        setTexte(texteFinal)
+        setSections(decouperEnSections(paragraphesFusionnes))
         setChargement(false)
       } catch (e) {
         if (!annule) { setErreur(`Impossible de charger ce livre (${e?.message || e}).`); setChargement(false) }
@@ -171,19 +214,43 @@ export default function LecteurPDF({ url }) {
     return () => { annule = true }
   }, [url])
 
-  function allerAuTitre(index) {
-    document.getElementById(`p-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Après un changement de section (depuis la table des matières ou les pastilles), on remonte
+  // en haut, ou on défile jusqu'au sous-titre précis visé s'il y en avait un.
+  useEffect(() => {
+    if (!sections) return
+    const id = cibleScrollRef.current
+    cibleScrollRef.current = null
+    requestAnimationFrame(() => {
+      if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      else window.scrollTo({ top: 0, behavior: 'smooth' })
+    })
+  }, [sectionIndex, sections])
+
+  function allerAuTitre(indexGlobal) {
+    const k = sections.findIndex((s) => indexGlobal >= s.debut && indexGlobal < s.fin)
+    if (k === -1) return
+    const idLocal = `p-${indexGlobal - sections[k].debut}`
+    cibleScrollRef.current = idLocal
+    setSectionIndex(k)
   }
 
   if (erreur) return <p className="text-papier/40 text-sm font-mono py-6">{erreur}</p>
 
-  if (chargement) {
+  if (chargement || !sections) {
     return (
       <div className="py-10">
         <p className="text-papier/35 text-sm font-mono">Préparation du texte... {progression}%</p>
       </div>
     )
   }
+
+  const section = sections[sectionIndex]
+  const texteSection = section.blocs.map((p) => (p.titre ? `§TITRE§${p.texte}` : p.texte)).join('\n\n')
+
+  // Pour la lecture audio : le titre de la section (lu séparément par LectureAudio) et le reste
+  // du texte, sans marqueurs de mise en forme.
+  const titreAudio = section.blocs[0]?.titre ? section.blocs[0].texte : ''
+  const texteAudio = (titreAudio ? section.blocs.slice(1) : section.blocs).map((p) => p.texte).join('\n\n')
 
   return (
     <div>
@@ -192,10 +259,16 @@ export default function LecteurPDF({ url }) {
           <p className="text-or text-xs font-mono uppercase tracking-widest mb-3">Table des matières</p>
           <ul className="space-y-1.5">
             {tableMatieres.map((t) => (
-              <li key={t.index}>
+              <li key={t.index} style={{ paddingLeft: `${(t.niveau - 1) * 14}px` }}>
                 <button
                   onClick={() => allerAuTitre(t.index)}
-                  className="text-sm text-papier/60 hover:text-or transition-colors text-left"
+                  className={`text-left transition-colors hover:text-or ${
+                    t.niveau === 1
+                      ? 'text-papier/85 text-sm font-semibold uppercase tracking-wide'
+                      : t.niveau === 2
+                      ? 'text-papier/70 text-sm'
+                      : 'text-papier/40 text-xs italic'
+                  }`}
                 >
                   {t.texte}
                 </button>
@@ -205,7 +278,42 @@ export default function LecteurPDF({ url }) {
         </div>
       )}
 
-      <CorpsChapitre texte={texte} />
+      {sections.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-8">
+          {sections.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setSectionIndex(i)}
+              className={`font-mono text-xs rounded-full px-3 py-1 border transition-colors ${
+                i === sectionIndex ? 'border-or text-or' : 'border-papier/15 text-papier/35 hover:border-papier/35 hover:text-papier/60'
+              }`}
+            >
+              {s.pilLabel}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mb-8">
+        <LectureAudio texte={texteAudio} titre={titreAudio} />
+      </div>
+
+      <CorpsChapitre texte={texteSection} />
+
+      {sections.length > 1 && (
+        <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
+          {sectionIndex > 0 ? (
+            <button onClick={() => setSectionIndex(sectionIndex - 1)} className="text-papier/50 hover:text-or transition-colors">
+              ← {sections[sectionIndex - 1].pilLabel}
+            </button>
+          ) : <span />}
+          {sectionIndex < sections.length - 1 ? (
+            <button onClick={() => setSectionIndex(sectionIndex + 1)} className="text-papier/50 hover:text-or transition-colors">
+              {sections[sectionIndex + 1].pilLabel} →
+            </button>
+          ) : <span />}
+        </div>
+      )}
 
       <p className="text-papier/25 text-xs font-mono mt-8 text-center">
         Texte extrait automatiquement du PDF d'origine — de rares écarts de mise en forme sont possibles selon la mise en page source.
