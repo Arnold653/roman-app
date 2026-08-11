@@ -210,22 +210,25 @@ export default function AdminPage() {
         <h1 className="font-display text-4xl text-papier">
           {edition ? (edition.type === 'roman' ? 'Modifier le roman' : 'Modifier le chapitre') : modeChapitreSeul ? 'Nouveau chapitre' : 'Publier'}
         </h1>
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={nettoyerTitres}
-            className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
-          >
-            Nettoyer imports
-          </button>
-          <button
-            onClick={() => inputFichierRef.current?.click()}
-            className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
-          >
-            Importer .md
-          </button>
-        </div>
-        <input ref={inputFichierRef} type="file" accept=".md,text/markdown" onChange={choisirFichier} className="hidden" />
       </div>
+      <a href="/admin/livres" className="inline-block text-xs font-mono uppercase tracking-wide text-or hover:brightness-125 mb-4">
+        Gérer les livres (PDF) →
+      </a>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={nettoyerTitres}
+          className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
+        >
+          Nettoyer imports
+        </button>
+        <button
+          onClick={() => inputFichierRef.current?.click()}
+          className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
+        >
+          Importer .md
+        </button>
+      </div>
+      <input ref={inputFichierRef} type="file" accept=".md,text/markdown" onChange={choisirFichier} className="hidden" />
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
         {modeChapitreSeul
           ? `Ajout rapide à « ${form.titre} » — les infos du roman restent inchangées.`

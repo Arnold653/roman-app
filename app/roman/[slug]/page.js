@@ -4,6 +4,7 @@ import CorpsChapitre from '@/components/CorpsChapitre'
 import BoutonLike from '@/components/BoutonLike'
 import SuiviLecture from '@/components/SuiviLecture'
 import LectureAudio from '@/components/LectureAudio'
+import BadgeTransparence from '@/components/BadgeTransparence'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -48,6 +49,9 @@ export default async function RomanPage({ params, searchParams }) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Télécharger en PDF
           </a>
+          <div className="mt-4">
+            <BadgeTransparence generePar={roman.genere_par_ia} verifiePar={roman.verifie_par} />
+          </div>
         </div>
       ) : (
         <div className="mb-10 lever flex items-baseline justify-between gap-4">

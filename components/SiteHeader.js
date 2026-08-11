@@ -61,6 +61,7 @@ export default function SiteHeader() {
 
   const liensNav = [
     { href: '/', label: 'Romans' },
+    { href: '/livres', label: 'Livres' },
     ...(connecte ? [{ href: '/fil', label: 'Fil' }] : []),
     { href: '/communaute', label: 'Communauté' },
     { href: '/lecteurs', label: 'Découvrir' },

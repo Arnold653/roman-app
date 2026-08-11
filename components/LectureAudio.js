@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 export default function LectureAudio({ texte, titre }) {
   const [etat, setEtat] = useState('arret') // arret | lecture | pause | erreur
   const [disponible, setDisponible] = useState(true)
+  const [erreurDetail, setErreurDetail] = useState('')
   const intervalleRef = useRef(null)
 
   useEffect(() => {
@@ -33,30 +34,29 @@ export default function LectureAudio({ texte, titre }) {
     const synth = window.speechSynthesis
     synth.cancel()
 
-    // Contournement Chrome : un speak() immédiatement après cancel() est parfois avalé
-    setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(`${titre ? titre + '. ' : ''}${texteAudible()}`)
-      u.lang = 'fr-FR'
-      u.rate = 0.98
+    const u = new SpeechSynthesisUtterance(`${titre ? titre + '. ' : ''}${texteAudible()}`)
+    u.lang = 'fr-FR'
+    u.rate = 0.98
 
-      const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
-      if (voix) u.voice = voix
+    const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
+    if (voix) u.voice = voix
 
-      u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
-      u.onerror = () => { setEtat('erreur'); clearInterval(intervalleRef.current) }
+    u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
+    u.onerror = (e) => { setErreurDetail(e.error || 'inconnue'); setEtat('erreur'); clearInterval(intervalleRef.current) }
 
-      synth.speak(u)
-      setEtat('lecture')
+    // Appel synchrone, dans le même geste utilisateur (clic) — un délai ici fait échouer
+    // silencieusement la lecture sur de nombreux navigateurs mobiles.
+    synth.speak(u)
+    setEtat('lecture')
 
-      // Contournement Android/Chrome : la synthèse se coupe seule après ~15s sans ce hack
-      clearInterval(intervalleRef.current)
-      intervalleRef.current = setInterval(() => {
-        if (synth.speaking && !synth.paused) {
-          synth.pause()
-          synth.resume()
-        }
-      }, 10000)
-    }, 80)
+    // Contournement Android/Chrome : la synthèse se coupe seule après ~15s sans ce hack
+    clearInterval(intervalleRef.current)
+    intervalleRef.current = setInterval(() => {
+      if (synth.speaking && !synth.paused) {
+        synth.pause()
+        synth.resume()
+      }
+    }, 10000)
   }
 
   function basculerPause() {
@@ -83,7 +83,7 @@ export default function LectureAudio({ texte, titre }) {
       {etat === 'arret' || etat === 'erreur' ? (
         <button onClick={demarrer} className="flex items-center gap-2 text-sm text-papier/60 hover:text-or transition-colors pl-2 pr-3">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-          {etat === 'erreur' ? "Réessayer l'écoute" : 'Écouter ce chapitre'}
+          {etat === 'erreur' ? `Réessayer (${erreurDetail})` : 'Écouter ce chapitre'}
         </button>
       ) : (
         <>
