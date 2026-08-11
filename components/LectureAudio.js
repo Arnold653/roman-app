@@ -11,6 +11,7 @@ export default function LectureAudio({ texte, titre }) {
   const [disponible, setDisponible] = useState(true)
   const [erreurDetail, setErreurDetail] = useState('')
   const intervalleRef = useRef(null)
+  const utterancesRef = useRef([])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -56,25 +57,30 @@ export default function LectureAudio({ texte, titre }) {
     const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
     const blocs = decouperEnBlocs(`${titre ? titre + '. ' : ''}${texteAudible()}`)
 
-    blocs.forEach((bloc, i) => {
+    // Les objets utterance doivent rester référencés quelque part tant qu'ils jouent :
+    // s'ils ne sont référencés que par une variable locale de boucle, certains navigateurs
+    // les ramassent (garbage collection) en plein milieu de la lecture, ce qui coupe le son
+    // net après quelques secondes. On les garde donc tous dans une ref qui survit au rendu.
+    const listeUtterances = blocs.map((bloc, i) => {
       const u = new SpeechSynthesisUtterance(bloc)
       u.lang = 'fr-FR'
       u.rate = 0.98
       if (voix) u.voice = voix
 
       if (i === blocs.length - 1) {
-        u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
+        u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current); utterancesRef.current = [] }
       }
       u.onerror = (e) => {
         setErreurDetail(e.error || 'inconnue')
         setEtat('erreur')
         clearInterval(intervalleRef.current)
+        utterancesRef.current = []
       }
-
-      // Tous les appels speak() sont faits ici, de façon synchrone, dans le même geste
-      // utilisateur — l'API les joue automatiquement les uns après les autres.
-      synth.speak(u)
+      return u
     })
+
+    utterancesRef.current = listeUtterances
+    listeUtterances.forEach((u) => synth.speak(u))
 
     setEtat('lecture')
 
