@@ -215,7 +215,7 @@ export default function AdminPage() {
             onClick={nettoyerTitres}
             className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
           >
-            Nettoyer titres
+            Nettoyer imports
           </button>
           <button
             onClick={() => inputFichierRef.current?.click()}

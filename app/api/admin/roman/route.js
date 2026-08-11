@@ -37,13 +37,21 @@ export async function PATCH(request) {
 
   if (body.type === 'nettoyage_titres') {
     // Retire les tirets/deux-points en trop laissés au début des titres de chapitres
-    // (résidus d'anciens imports .md avant correction du parseur)
-    const { data: chapitres } = await admin.from('chapitres').select('id, titre')
+    // (résidus d'anciens imports .md avant correction du parseur), et coupe le matériel
+    // éditorial (FIN, quatrième de couverture...) qui aurait été collé au dernier chapitre.
+    const { data: chapitres } = await admin.from('chapitres').select('id, titre, contenu')
     let corriges = 0
+    const regexFinDeMatiere = /^\s*(FIN\s*$|#{1,3}\s.*)/im
+
     for (const c of chapitres ?? []) {
-      const nettoye = (c.titre || '').replace(/^[\s:\-–—]+/, '').trim()
-      if (nettoye !== c.titre) {
-        await admin.from('chapitres').update({ titre: nettoye }).eq('id', c.id)
+      const titreNettoye = (c.titre || '').replace(/^[\s:\-–—]+/, '').trim()
+
+      let contenuNettoye = c.contenu || ''
+      const matchFin = contenuNettoye.match(regexFinDeMatiere)
+      if (matchFin) contenuNettoye = contenuNettoye.slice(0, matchFin.index).trim()
+
+      if (titreNettoye !== c.titre || contenuNettoye !== c.contenu) {
+        await admin.from('chapitres').update({ titre: titreNettoye, contenu: contenuNettoye }).eq('id', c.id)
         corriges++
       }
     }

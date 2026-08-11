@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 
 // Lecture audio du chapitre via la synthèse vocale du navigateur (gratuite, aucun serveur requis).
-// La qualité dépend de l'appareil/navigateur, mais fonctionne sans configuration.
+// Contient plusieurs contournements pour des bugs connus de Chrome/Android :
+// - speak() juste après cancel() est parfois ignoré silencieusement -> léger délai
+// - la synthèse se met en pause automatiquement après ~15s sur certains appareils -> resume() en boucle
 export default function LectureAudio({ texte, titre }) {
-  const [etat, setEtat] = useState('arret') // arret | lecture | pause
+  const [etat, setEtat] = useState('arret') // arret | lecture | pause | erreur
   const [disponible, setDisponible] = useState(true)
-  const utteranceRef = useRef(null)
+  const intervalleRef = useRef(null)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -15,12 +17,11 @@ export default function LectureAudio({ texte, titre }) {
     }
     return () => {
       window.speechSynthesis?.cancel()
+      clearInterval(intervalleRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function texteAudible() {
-    // Retire la mise en forme (**, #, *) et les séparateurs pour une lecture propre
     return texte
       .replace(/\*\*(.+?)\*\*/g, '$1')
       .replace(/#(.+?)#/g, '$1')
@@ -29,29 +30,49 @@ export default function LectureAudio({ texte, titre }) {
   }
 
   function demarrer() {
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(`${titre ? titre + '. ' : ''}${texteAudible()}`)
-    u.lang = 'fr-FR'
-    u.rate = 0.98
-    u.onend = () => setEtat('arret')
-    u.onerror = () => setEtat('arret')
-    utteranceRef.current = u
-    window.speechSynthesis.speak(u)
-    setEtat('lecture')
+    const synth = window.speechSynthesis
+    synth.cancel()
+
+    // Contournement Chrome : un speak() immédiatement après cancel() est parfois avalé
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(`${titre ? titre + '. ' : ''}${texteAudible()}`)
+      u.lang = 'fr-FR'
+      u.rate = 0.98
+
+      const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
+      if (voix) u.voice = voix
+
+      u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
+      u.onerror = () => { setEtat('erreur'); clearInterval(intervalleRef.current) }
+
+      synth.speak(u)
+      setEtat('lecture')
+
+      // Contournement Android/Chrome : la synthèse se coupe seule après ~15s sans ce hack
+      clearInterval(intervalleRef.current)
+      intervalleRef.current = setInterval(() => {
+        if (synth.speaking && !synth.paused) {
+          synth.pause()
+          synth.resume()
+        }
+      }, 10000)
+    }, 80)
   }
 
   function basculerPause() {
+    const synth = window.speechSynthesis
     if (etat === 'lecture') {
-      window.speechSynthesis.pause()
+      synth.pause()
       setEtat('pause')
     } else if (etat === 'pause') {
-      window.speechSynthesis.resume()
+      synth.resume()
       setEtat('lecture')
     }
   }
 
   function arreter() {
     window.speechSynthesis.cancel()
+    clearInterval(intervalleRef.current)
     setEtat('arret')
   }
 
@@ -59,10 +80,10 @@ export default function LectureAudio({ texte, titre }) {
 
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-ligne px-1.5 py-1.5">
-      {etat === 'arret' ? (
+      {etat === 'arret' || etat === 'erreur' ? (
         <button onClick={demarrer} className="flex items-center gap-2 text-sm text-papier/60 hover:text-or transition-colors pl-2 pr-3">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-          Écouter ce chapitre
+          {etat === 'erreur' ? "Réessayer l'écoute" : 'Écouter ce chapitre'}
         </button>
       ) : (
         <>
@@ -82,3 +103,4 @@ export default function LectureAudio({ texte, titre }) {
     </div>
   )
 }
+
