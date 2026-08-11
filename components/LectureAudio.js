@@ -10,16 +10,20 @@ import { useEffect, useRef, useState } from 'react'
 // - sur Chrome ANDROID, pause() termine l'utterance en cours et resume() ne fait rien
 //   (bug Chromium connu, jamais corrigé) : le contournement ci-dessus y CASSE le son
 //   au lieu de le réparer. Android utilise des voix locales et n'a pas ce bug des 15s,
-//   donc on désactive simplement le contournement sur Android.
+//   donc on désactive le contournement sur Android, et on gère la pause/reprise manuelle
+//   différemment : on mémorise le bloc en cours et on relance dessus au lieu d'appeler resume().
 function estAndroid() {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 }
+
 export default function LectureAudio({ texte, titre }) {
   const [etat, setEtat] = useState('arret') // arret | lecture | pause | erreur
   const [disponible, setDisponible] = useState(true)
   const [erreurDetail, setErreurDetail] = useState('')
   const intervalleRef = useRef(null)
   const utterancesRef = useRef([])
+  const blocsRef = useRef([])
+  const blocIndexRef = useRef(0)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -58,27 +62,40 @@ export default function LectureAudio({ texte, titre }) {
     return blocs
   }
 
-  function demarrer() {
+  // Construit les utterances à partir du bloc `indexDepart` et lance la lecture.
+  // Réutilisé au démarrage (indexDepart = 0) et lors d'une reprise sur Android
+  // (indexDepart = dernier bloc en cours quand la pause a été demandée), puisque
+  // resume() n'y fonctionne pas (voir notes en tête de fichier).
+  function lancerDepuis(indexDepart) {
     const synth = window.speechSynthesis
     synth.cancel()
 
     const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
-    const blocs = decouperEnBlocs(`${titre ? titre + '. ' : ''}${texteAudible()}`)
+    const blocs = blocsRef.current
+    const sousListe = blocs.slice(indexDepart)
 
     // Les objets utterance doivent rester référencés quelque part tant qu'ils jouent :
     // s'ils ne sont référencés que par une variable locale de boucle, certains navigateurs
     // les ramassent (garbage collection) en plein milieu de la lecture, ce qui coupe le son
     // net après quelques secondes. On les garde donc tous dans une ref qui survit au rendu.
-    const listeUtterances = blocs.map((bloc, i) => {
+    const listeUtterances = sousListe.map((bloc, i) => {
+      const indexReel = indexDepart + i
       const u = new SpeechSynthesisUtterance(bloc)
       u.lang = 'fr-FR'
       u.rate = 0.98
       if (voix) u.voice = voix
 
-      if (i === blocs.length - 1) {
+      // On mémorise quel bloc est en train d'être lu, pour pouvoir reprendre au bon
+      // endroit sur Android si l'utilisateur met en pause.
+      u.onstart = () => { blocIndexRef.current = indexReel }
+
+      if (indexReel === blocs.length - 1) {
         u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current); utterancesRef.current = [] }
       }
       u.onerror = (e) => {
+        // Sur Android, cancel() déclenche un onerror "interrupted"/"canceled" pour l'utterance
+        // en cours : c'est normal lors d'une pause manuelle ou d'un changement de bloc, pas une vraie erreur.
+        if (e.error === 'interrupted' || e.error === 'canceled') return
         setErreurDetail(e.error || 'inconnue')
         setEtat('erreur')
         clearInterval(intervalleRef.current)
@@ -105,14 +122,31 @@ export default function LectureAudio({ texte, titre }) {
     }
   }
 
+  function demarrer() {
+    blocsRef.current = decouperEnBlocs(`${titre ? titre + '. ' : ''}${texteAudible()}`)
+    blocIndexRef.current = 0
+    lancerDepuis(0)
+  }
+
   function basculerPause() {
     const synth = window.speechSynthesis
     if (etat === 'lecture') {
-      synth.pause()
+      if (estAndroid()) {
+        // pause() y termine l'utterance en cours pour de bon : on annule et on mémorise
+        // simplement le bloc en cours pour pouvoir relancer dessus au clic sur "reprendre".
+        clearInterval(intervalleRef.current)
+        synth.cancel()
+      } else {
+        synth.pause()
+      }
       setEtat('pause')
     } else if (etat === 'pause') {
-      synth.resume()
-      setEtat('lecture')
+      if (estAndroid()) {
+        lancerDepuis(blocIndexRef.current)
+      } else {
+        synth.resume()
+        setEtat('lecture')
+      }
     }
   }
 
@@ -149,4 +183,3 @@ export default function LectureAudio({ texte, titre }) {
     </div>
   )
 }
-
