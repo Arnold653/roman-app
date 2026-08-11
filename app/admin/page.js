@@ -16,6 +16,9 @@ export default function AdminPage() {
   const [edition, setEdition] = useState(null) // { type: 'roman' | 'chapitre', id }
   const [modeChapitreSeul, setModeChapitreSeul] = useState(false) // ajout rapide à un roman existant
   const [important, setImportant] = useState(null) // aperçu d'un import .md en attente de confirmation
+  const [planifierImport, setPlanifierImport] = useState(false)
+  const [planifDepart, setPlanifDepart] = useState('')
+  const [planifIntervalle, setPlanifIntervalle] = useState(3)
   const inputFichierRef = useRef(null)
 
   useEffect(() => {
@@ -137,9 +140,43 @@ export default function AdminPage() {
     lecteur.onload = (evt) => {
       const resultat = parserMarkdownRoman(evt.target.result)
       setImportant(resultat)
+      setPlanifierImport(false)
+      const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+      setPlanifDepart(maintenant.toISOString().slice(0, 16))
+      setPlanifIntervalle(3)
     }
     lecteur.readAsText(fichier)
     e.target.value = ''
+  }
+
+  // Étale la sortie des chapitres à partir de `depart`, un chapitre tous les `intervalleJours` jours
+  // (chapitre 1 = depart, chapitre 2 = depart + intervalle, etc.). Chaque date reste modifiable
+  // ensuite au cas par cas dans l'aperçu, pour organiser une « première » particulière par exemple.
+  function repartirChapitres(depart, intervalleJours) {
+    if (!important || !depart) return
+    const base = new Date(depart)
+    const chapitres = important.chapitres.map((c, i) => {
+      const date = new Date(base.getTime() + i * intervalleJours * 86400000)
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      return { ...c, publie_le: local.toISOString().slice(0, 16) }
+    })
+    setImportant({ ...important, chapitres })
+  }
+
+  function basculerPlanification(active) {
+    setPlanifierImport(active)
+    if (active) {
+      repartirChapitres(planifDepart, planifIntervalle)
+    } else {
+      setImportant({ ...important, chapitres: important.chapitres.map((c) => ({ ...c, publie_le: '' })) })
+    }
+  }
+
+  function modifierDateChapitre(numero, valeur) {
+    setImportant({
+      ...important,
+      chapitres: important.chapitres.map((c) => (c.numero === numero ? { ...c, publie_le: valeur } : c)),
+    })
   }
 
   async function confirmerImport() {
@@ -165,6 +202,7 @@ export default function AdminPage() {
           chapitre_titre: chap.titre,
           contenu: chap.contenu,
           citation_fin: chap.citation_fin,
+          publie_le: chap.publie_le || undefined,
         }),
       })
       const data = await res.json()
@@ -295,10 +333,56 @@ export default function AdminPage() {
             <p className="font-display text-xl text-papier mb-1">{important.titre || '(sans titre — utilise le slug déjà saisi)'}</p>
             <p className="text-papier/40 text-xs font-mono mb-4">{important.genre}</p>
             <p className="text-papier/60 text-sm mb-4">{important.resume}</p>
-            <p className="text-papier/50 text-xs font-mono mb-4">{important.chapitres.length} chapitre(s) détecté(s) :</p>
-            <ul className="space-y-1 mb-6">
+            <p className="text-papier/50 text-xs font-mono mb-3">{important.chapitres.length} chapitre(s) détecté(s) :</p>
+
+            <label className="flex items-center gap-2 text-sm text-papier/70 mb-3">
+              <input
+                type="checkbox"
+                checked={planifierImport}
+                onChange={(e) => basculerPlanification(e.target.checked)}
+              />
+              Programmer la sortie des chapitres
+            </label>
+
+            {planifierImport && (
+              <div className="grid grid-cols-2 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
+                  <input
+                    type="datetime-local"
+                    value={planifDepart}
+                    onChange={(e) => { setPlanifDepart(e.target.value); repartirChapitres(e.target.value, planifIntervalle) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Puis tous les (jours)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={planifIntervalle}
+                    onChange={(e) => { const v = Number(e.target.value); setPlanifIntervalle(v); repartirChapitres(planifDepart, v) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+              </div>
+            )}
+
+            <ul className="space-y-2 mb-6">
               {important.chapitres.map((c) => (
-                <li key={c.numero} className="text-sm text-papier/70">Ch. {c.numero} {c.titre && `— ${c.titre}`}</li>
+                <li key={c.numero} className="text-sm text-papier/70">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
+                  </div>
+                  {planifierImport && (
+                    <input
+                      type="datetime-local"
+                      value={c.publie_le || ''}
+                      onChange={(e) => modifierDateChapitre(c.numero, e.target.value)}
+                      className="mt-1 w-full bg-encreClair border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                    />
+                  )}
+                </li>
               ))}
             </ul>
             <div className="flex gap-3">
