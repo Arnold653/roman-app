@@ -3,9 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 
 // Lecture audio du chapitre via la synthèse vocale du navigateur (gratuite, aucun serveur requis).
-// Contient plusieurs contournements pour des bugs connus de Chrome/Android :
+// Contient plusieurs contournements pour des bugs connus de Chrome :
 // - speak() juste après cancel() est parfois ignoré silencieusement -> léger délai
-// - la synthèse se met en pause automatiquement après ~15s sur certains appareils -> resume() en boucle
+// - sur Chrome DESKTOP (voix réseau), la synthèse se met en pause automatiquement après ~15s
+//   -> on la relance avec pause()/resume() en boucle
+// - sur Chrome ANDROID, pause() termine l'utterance en cours et resume() ne fait rien
+//   (bug Chromium connu, jamais corrigé) : le contournement ci-dessus y CASSE le son
+//   au lieu de le réparer. Android utilise des voix locales et n'a pas ce bug des 15s,
+//   donc on désactive simplement le contournement sur Android.
+function estAndroid() {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+}
 export default function LectureAudio({ texte, titre }) {
   const [etat, setEtat] = useState('arret') // arret | lecture | pause | erreur
   const [disponible, setDisponible] = useState(true)
@@ -84,14 +92,17 @@ export default function LectureAudio({ texte, titre }) {
 
     setEtat('lecture')
 
-    // Contournement Android/Chrome : la synthèse se coupe seule après ~15s sans ce hack
+    // Contournement Chrome desktop uniquement : la synthèse se coupe seule après ~15s
+    // sans ce hack. Sur Android, ce même hack casse la lecture (voir note en tête de fichier).
     clearInterval(intervalleRef.current)
-    intervalleRef.current = setInterval(() => {
-      if (synth.speaking && !synth.paused) {
-        synth.pause()
-        synth.resume()
-      }
-    }, 10000)
+    if (!estAndroid()) {
+      intervalleRef.current = setInterval(() => {
+        if (synth.speaking && !synth.paused) {
+          synth.pause()
+          synth.resume()
+        }
+      }, 10000)
+    }
   }
 
   function basculerPause() {
