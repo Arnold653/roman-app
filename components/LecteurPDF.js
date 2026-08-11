@@ -15,8 +15,8 @@ export default function LecteurPDF({ url }) {
 
     async function charger() {
       try {
-        const pdfjsLib = await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf')
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.js`
 
         const doc = await pdfjsLib.getDocument(url).promise
         if (annule) return
@@ -25,7 +25,7 @@ export default function LecteurPDF({ url }) {
         setChargement(false)
         rendrePage(1, doc)
       } catch (e) {
-        if (!annule) { setErreur('Impossible de charger ce livre.'); setChargement(false) }
+        if (!annule) { setErreur(`Impossible de charger ce livre (${e?.message || e}).`); setChargement(false) }
       }
     }
 

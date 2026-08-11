@@ -1,6 +1,7 @@
 import './globals.css'
 import SiteHeader from '@/components/SiteHeader'
 import TourAccueil from '@/components/TourAccueil'
+import LienCompteFooter from '@/components/LienCompteFooter'
 
 export const metadata = {
   title: 'Encre — lire, discuter, partager',
@@ -73,7 +74,7 @@ export default function RootLayout({ children }) {
               <div className="font-mono text-xs uppercase tracking-wide">
                 <p className="text-papier/30 mb-4">Compte</p>
                 <ul className="space-y-3 text-papier/55">
-                  <li><a href="/login" className="hover:text-or transition-colors">Se connecter</a></li>
+                  <LienCompteFooter />
                   <li><a href="/messages" className="hover:text-or transition-colors">Messages</a></li>
                 </ul>
               </div>

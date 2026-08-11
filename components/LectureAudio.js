@@ -30,23 +30,52 @@ export default function LectureAudio({ texte, titre }) {
       .replace(/^(---+|\*\*\*+|___+)$/gm, '')
   }
 
+  // De nombreux moteurs TTS Android tronquent ou échouent silencieusement au-delà
+  // d'environ 3500-4000 caractères par appel — on découpe donc en blocs plus courts,
+  // sur des limites de phrases, et on les enchaîne.
+  function decouperEnBlocs(texte, tailleMax = 3000) {
+    const phrases = texte.split(/(?<=[.!?…])\s+/)
+    const blocs = []
+    let bloc = ''
+    for (const phrase of phrases) {
+      if ((bloc + ' ' + phrase).length > tailleMax && bloc) {
+        blocs.push(bloc.trim())
+        bloc = phrase
+      } else {
+        bloc = bloc ? `${bloc} ${phrase}` : phrase
+      }
+    }
+    if (bloc) blocs.push(bloc.trim())
+    return blocs
+  }
+
   function demarrer() {
     const synth = window.speechSynthesis
     synth.cancel()
 
-    const u = new SpeechSynthesisUtterance(`${titre ? titre + '. ' : ''}${texteAudible()}`)
-    u.lang = 'fr-FR'
-    u.rate = 0.98
-
     const voix = synth.getVoices().find((v) => v.lang?.startsWith('fr'))
-    if (voix) u.voice = voix
+    const blocs = decouperEnBlocs(`${titre ? titre + '. ' : ''}${texteAudible()}`)
 
-    u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
-    u.onerror = (e) => { setErreurDetail(e.error || 'inconnue'); setEtat('erreur'); clearInterval(intervalleRef.current) }
+    blocs.forEach((bloc, i) => {
+      const u = new SpeechSynthesisUtterance(bloc)
+      u.lang = 'fr-FR'
+      u.rate = 0.98
+      if (voix) u.voice = voix
 
-    // Appel synchrone, dans le même geste utilisateur (clic) — un délai ici fait échouer
-    // silencieusement la lecture sur de nombreux navigateurs mobiles.
-    synth.speak(u)
+      if (i === blocs.length - 1) {
+        u.onend = () => { setEtat('arret'); clearInterval(intervalleRef.current) }
+      }
+      u.onerror = (e) => {
+        setErreurDetail(e.error || 'inconnue')
+        setEtat('erreur')
+        clearInterval(intervalleRef.current)
+      }
+
+      // Tous les appels speak() sont faits ici, de façon synchrone, dans le même geste
+      // utilisateur — l'API les joue automatiquement les uns après les autres.
+      synth.speak(u)
+    })
+
     setEtat('lecture')
 
     // Contournement Android/Chrome : la synthèse se coupe seule après ~15s sans ce hack

@@ -26,9 +26,26 @@ export default async function RomanPage({ params, searchParams }) {
     .lte('publie_le', new Date().toISOString())
     .order('numero', { ascending: true })
 
-  const dernier = chapitres?.[chapitres.length - 1]
-  const numeroDemande = searchParams?.ch ? Number(searchParams.ch) : dernier?.numero
-  const courant = chapitres?.find((c) => c.numero === numeroDemande) || dernier
+  const premier = chapitres?.[0]
+
+  let numeroDemande = searchParams?.ch ? Number(searchParams.ch) : null
+
+  if (!numeroDemande) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: progression } = await supabase
+        .from('lecture_progress')
+        .select('dernier_chapitre')
+        .eq('user_id', user.id)
+        .eq('roman_id', roman.id)
+        .maybeSingle()
+      numeroDemande = progression?.dernier_chapitre || premier?.numero
+    } else {
+      numeroDemande = premier?.numero
+    }
+  }
+
+  const courant = chapitres?.find((c) => c.numero === numeroDemande) || premier
   const index = chapitres?.findIndex((c) => c.id === courant?.id) ?? -1
   const precedent = index > 0 ? chapitres[index - 1] : null
   const suivant = index >= 0 && index < (chapitres?.length ?? 0) - 1 ? chapitres[index + 1] : null
