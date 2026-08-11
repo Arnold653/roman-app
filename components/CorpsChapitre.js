@@ -55,8 +55,16 @@ export default function CorpsChapitre({ texte }) {
       {paragraphes.map((p, i) => {
         if (p === '§SEPARATEUR§') {
           return (
-            <p key={i} className="text-center text-or/40 tracking-[0.5em] text-xs py-2" aria-hidden="true">
+            <p key={i} id={`p-${i}`} className="text-center text-or/40 tracking-[0.5em] text-xs py-2" aria-hidden="true">
                · · ·
+            </p>
+          )
+        }
+
+        if (p.startsWith('§TITRE§')) {
+          return (
+            <p key={i} id={`p-${i}`} className="font-display text-2xl text-papier text-center pt-6 pb-1 tracking-wide">
+              <InlineMarkdown texte={p.slice('§TITRE§'.length)} />
             </p>
           )
         }
@@ -66,7 +74,7 @@ export default function CorpsChapitre({ texte }) {
         if (i === 0 && p.length > 0) {
           // Lettrine gérée manuellement (survit à la mise en forme imbriquée gras/italique)
           return (
-            <p key={i}>
+            <p key={i} id={`p-${i}`}>
               <span className="font-display text-[4.2rem] font-semibold leading-[0.82] float-left pr-[0.09em]">
                 {p.charAt(0)}
               </span>
@@ -76,7 +84,7 @@ export default function CorpsChapitre({ texte }) {
         }
 
         return (
-          <p key={i} className={estDialogue ? 'pl-6' : ''}>
+          <p key={i} id={`p-${i}`} className={estDialogue ? 'pl-6' : ''}>
             <InlineMarkdown texte={p} />
           </p>
         )
