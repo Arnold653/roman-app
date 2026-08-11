@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import BadgeTransparence from '@/components/BadgeTransparence'
+import LecteurPDF from '@/components/LecteurPDF'
 
 export default async function LivreDetailPage({ params }) {
   const supabase = createClient()
@@ -17,23 +18,15 @@ export default async function LivreDetailPage({ params }) {
         </span>
       )}
       <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-2 leading-tight">{livre.titre}</h1>
-      {livre.auteur && <p className="text-papier/40 font-mono text-sm mb-6">{livre.auteur}</p>}
+      {livre.auteur && <p className="text-papier/40 font-mono text-sm mb-4">{livre.auteur}</p>}
 
-      {livre.description && <p className="text-papier/60 leading-relaxed mb-8">{livre.description}</p>}
+      {livre.description && <p className="text-papier/60 leading-relaxed mb-6">{livre.description}</p>}
 
-      <a
-        href={livre.fichier_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 bg-or text-encre font-medium rounded-full px-6 py-3 hover:brightness-110 transition-all mb-6"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        Télécharger le PDF
-      </a>
-
-      <div>
+      <div className="mb-8">
         <BadgeTransparence generePar={livre.genere_par_ia} verifiePar={livre.verifie_par} />
       </div>
+
+      <LecteurPDF url={livre.fichier_url} />
     </div>
   )
 }

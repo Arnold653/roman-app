@@ -42,16 +42,7 @@ export default async function RomanPage({ params, searchParams }) {
           </span>
           <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-3 leading-tight">{roman.titre}</h1>
           <p className="text-papier/50 leading-relaxed mb-4">{roman.resume}</p>
-          <a
-            href={`/api/roman/${roman.slug}/pdf`}
-            className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wide text-papier/50 border border-ligne rounded-full px-3.5 py-1.5 hover:border-or hover:text-or transition-colors"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            Télécharger en PDF
-          </a>
-          <div className="mt-4">
-            <BadgeTransparence generePar={roman.genere_par_ia} verifiePar={roman.verifie_par} />
-          </div>
+          <BadgeTransparence generePar={roman.genere_par_ia} verifiePar={roman.verifie_par} />
         </div>
       ) : (
         <div className="mb-10 lever flex items-baseline justify-between gap-4">
