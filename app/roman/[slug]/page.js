@@ -6,6 +6,7 @@ import BoutonLike from '@/components/BoutonLike'
 import SuiviLecture from '@/components/SuiviLecture'
 import LectureAudio from '@/components/LectureAudio'
 import BadgeTransparence from '@/components/BadgeTransparence'
+import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -35,6 +36,16 @@ export default async function RomanPage({ params, searchParams }) {
     .order('numero', { ascending: true })
 
   const premier = chapitres?.[0]
+
+  // Prochaine "Première" : le chapitre programmé le plus proche, pas encore sorti.
+  const { data: prochaineParution } = await supabase
+    .from('chapitres')
+    .select('numero, titre, publie_le')
+    .eq('roman_id', roman.id)
+    .gt('publie_le', new Date().toISOString())
+    .order('publie_le', { ascending: true })
+    .limit(1)
+    .maybeSingle()
 
   let numeroDemande = searchParams?.ch ? Number(searchParams.ch) : null
 
@@ -135,7 +146,21 @@ export default async function RomanPage({ params, searchParams }) {
           )}
 
           <CommentSection chapitreId={courant.id} />
+
+          {prochaineParution && (
+            <CompteAReboursPremiere
+              publieLe={prochaineParution.publie_le}
+              numero={prochaineParution.numero}
+              titre={prochaineParution.titre}
+            />
+          )}
         </article>
+      ) : prochaineParution ? (
+        <CompteAReboursPremiere
+          publieLe={prochaineParution.publie_le}
+          numero={prochaineParution.numero}
+          titre={prochaineParution.titre}
+        />
       ) : (
         <p className="text-papier/35 font-mono text-sm">Premier chapitre à venir bientôt.</p>
       )}

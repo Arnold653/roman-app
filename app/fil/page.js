@@ -15,7 +15,9 @@ export default async function FilPage() {
   const { data: suivis } = await supabase.from('follows').select('suivi_id').eq('follower_id', user.id)
   const idsSuivis = new Set((suivis ?? []).map((s) => s.suivi_id))
 
-  const [{ data: commentaires }, { data: likes }] = await Promise.all([
+  const depuis48h = new Date(Date.now() - 48 * 3_600_000).toISOString()
+
+  const [{ data: commentaires }, { data: likes }, { data: premieres }] = await Promise.all([
     supabase
       .from('commentaires')
       .select('id, contenu, created_at, user_id, profiles(pseudo, avatar_url), chapitres(numero, romans(titre, slug))')
@@ -26,6 +28,14 @@ export default async function FilPage() {
       .select('created_at, user_id, profiles(pseudo, avatar_url), chapitres(numero, romans(titre, slug))')
       .order('created_at', { ascending: false })
       .limit(40),
+    supabase
+      .from('chapitres')
+      .select('id, numero, titre, publie_le, romans!inner(titre, slug, statut_visibilite)')
+      .eq('notifie', true)
+      .eq('romans.statut_visibilite', 'publie')
+      .gte('publie_le', depuis48h)
+      .order('publie_le', { ascending: false })
+      .limit(10),
   ])
 
   const maintenant = Date.now()
@@ -34,11 +44,20 @@ export default async function FilPage() {
     const heures = (maintenant - new Date(item.date).getTime()) / 3_600_000
     const decroissance = Math.max(0, 48 - heures) // s'éteint après 48h
     const bonusSuivi = idsSuivis.has(item.user_id) ? 25 : 0
-    const bonusType = item.type === 'commentaire' ? 5 : 0
+    const bonusType = item.type === 'commentaire' ? 5 : item.type === 'premiere' ? 20 : 0
     return decroissance + bonusSuivi + bonusType
   }
 
   const activite = [
+    ...(premieres ?? []).map((p) => ({
+      type: 'premiere',
+      date: p.publie_le,
+      user_id: null,
+      roman: p.romans?.titre,
+      slug: p.romans?.slug,
+      numero: p.numero,
+      titreChapitre: p.titre,
+    })),
     ...(commentaires ?? []).map((c) => ({
       type: 'commentaire',
       date: c.created_at,
@@ -72,7 +91,23 @@ export default async function FilPage() {
       </p>
 
       <ul className="divide-y divide-ligne">
-        {activite.map((a, i) => (
+        {activite.map((a, i) =>
+          a.type === 'premiere' ? (
+            <li key={i} className="py-4 flex gap-3 items-start">
+              <div className="w-9 h-9 rounded-full bg-or/15 border border-or/40 flex items-center justify-center shrink-0">
+                <span className="text-or text-sm">✨</span>
+              </div>
+              <div className="min-w-0 text-sm">
+                <span className="text-or font-mono text-[0.65rem] uppercase tracking-widest">C'est sorti</span>
+                <p className="text-papier/70 mt-1">
+                  <a href={`/roman/${a.slug}?ch=${a.numero}`} className="text-papier hover:text-or transition-colors">
+                    « {a.roman} »
+                  </a>{' '}
+                  — chapitre {a.numero}{a.titreChapitre ? ` · ${a.titreChapitre}` : ''} vient de paraître.
+                </p>
+              </div>
+            </li>
+          ) : (
           <li key={i} className="py-4 flex gap-3">
             {a.profil?.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -94,7 +129,8 @@ export default async function FilPage() {
               {a.type === 'commentaire' && a.contenu && <p className="text-papier/70 mt-1 leading-relaxed">{a.contenu}</p>}
             </div>
           </li>
-        ))}
+          )
+        )}
         {activite.length === 0 && (
           <p className="text-papier/30 text-sm font-mono py-6">Rien pour l'instant.</p>
         )}
