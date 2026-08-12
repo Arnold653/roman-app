@@ -1,19 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import RangStories from '@/components/RangStories'
+import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
+import { degradeDe } from '@/lib/couvertures'
 
-// Dégradés générés automatiquement pour chaque couverture de roman — cohérents avec la charte (bleu / charbon).
-const DEGRADES = [
-  ['#1c9bf0', '#0b3a6b', '#050b16'],
-  ['#3ab0ff', '#0d3050', '#08101c'],
-  ['#0d6fc4', '#0a2540', '#050a12'],
-  ['#4fb3ff', '#0a2c52', '#060c16'],
-  ['#1584dd', '#0e2038', '#070d16'],
-]
-
-function degradeDe(id) {
-  const n = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  return DEGRADES[n % DEGRADES.length]
-}
 
 function CouvertureGeneree({ id, titre }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
@@ -97,6 +86,24 @@ export default async function HomePage() {
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
   ])
 
+  // Premières à venir, tous romans publiés confondus — la plus proche par roman.
+  const { data: chapitresProgrammes } = await supabase
+    .from('chapitres')
+    .select('numero, titre, publie_le, roman_id, romans!inner(id, titre, slug, couverture_url, statut_visibilite)')
+    .eq('notifie', false)
+    .gt('publie_le', new Date().toISOString())
+    .eq('romans.statut_visibilite', 'publie')
+    .order('publie_le', { ascending: true })
+
+  const vues = new Set()
+  const premieresAVenir = []
+  for (const c of chapitresProgrammes || []) {
+    if (vues.has(c.roman_id)) continue
+    vues.add(c.roman_id)
+    premieresAVenir.push(c)
+    if (premieresAVenir.length >= 6) break
+  }
+
   return (
     <div className="px-6 pt-20 pb-24 max-w-6xl mx-auto">
       <RangStories />
@@ -112,6 +119,33 @@ export default async function HomePage() {
           Romans en épisodes, livres à lire ou écouter, et une communauté qui suit les mêmes pages que toi.
         </p>
       </div>
+
+      {premieresAVenir.length > 0 && (
+        <div className="mb-16">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-or mb-4 flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-or opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-or" />
+            </span>
+            Premières à venir
+          </p>
+          <div className="flex gap-4 overflow-x-auto pb-1 -mx-6 px-6 sm:mx-0 sm:px-0" style={{ scrollSnapType: 'x mandatory' }}>
+            {premieresAVenir.map((c) => (
+              <CompteAReboursPremiere
+                key={c.roman_id}
+                compact
+                publieLe={c.publie_le}
+                numero={c.numero}
+                titre={c.titre}
+                romanTitre={c.romans?.titre}
+                romanSlug={c.romans?.slug}
+                couvertureUrl={c.romans?.couverture_url}
+                degrade={degradeDe(c.romans?.id || c.roman_id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {reprendre.length > 0 && (
         <div className="mb-16">

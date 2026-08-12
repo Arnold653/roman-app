@@ -7,6 +7,7 @@ import SuiviLecture from '@/components/SuiviLecture'
 import LectureAudio from '@/components/LectureAudio'
 import BadgeTransparence from '@/components/BadgeTransparence'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
+import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
@@ -152,6 +153,9 @@ export default async function RomanPage({ params, searchParams }) {
               publieLe={prochaineParution.publie_le}
               numero={prochaineParution.numero}
               titre={prochaineParution.titre}
+              romanTitre={roman.titre}
+              couvertureUrl={roman.couverture_url}
+              degrade={degradeDe(roman.id)}
             />
           )}
         </article>
@@ -160,6 +164,9 @@ export default async function RomanPage({ params, searchParams }) {
           publieLe={prochaineParution.publie_le}
           numero={prochaineParution.numero}
           titre={prochaineParution.titre}
+          romanTitre={roman.titre}
+          couvertureUrl={roman.couverture_url}
+          degrade={degradeDe(roman.id)}
         />
       ) : (
         <p className="text-papier/35 font-mono text-sm">Premier chapitre à venir bientôt.</p>
