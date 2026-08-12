@@ -69,6 +69,36 @@ export default function CorpsChapitre({ texte }) {
           )
         }
 
+        if (p.startsWith('§IMAGE§')) {
+          const url = p.slice('§IMAGE§'.length)
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} id={`p-${i}`} src={url} alt="" className="w-full rounded-lg" loading="lazy" />
+          )
+        }
+
+        if (p.startsWith('§TABLEAU§')) {
+          let lignesTableau = []
+          try { lignesTableau = JSON.parse(p.slice('§TABLEAU§'.length)) } catch { lignesTableau = [] }
+          return (
+            <div key={i} id={`p-${i}`} className="overflow-x-auto -mx-1">
+              <table className="w-full text-sm border-collapse">
+                <tbody>
+                  {lignesTableau.map((ligne, r) => (
+                    <tr key={r} className={r === 0 ? 'border-b border-or/30' : 'border-b border-ligne/40'}>
+                      {ligne.map((cellule, c) => (
+                        <td key={c} className={`px-2 py-1.5 align-top ${r === 0 ? 'text-papier/90 font-medium' : 'text-papier/70'}`}>
+                          {cellule}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+
         const estDialogue = /^[—–-]\s/.test(p)
 
         if (i === 0 && p.length > 0) {

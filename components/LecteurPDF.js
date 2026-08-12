@@ -6,9 +6,9 @@ import CorpsChapitre from './CorpsChapitre'
 import LectureAudio from './LectureAudio'
 
 // Regroupe les items de texte d'une page PDF en lignes, selon leur coordonnée verticale
-// (transform[5]). Chaque ligne garde aussi une taille de police approximative (dérivée de la
-// matrice de transformation de ses items), utilisée plus tard pour repérer les titres.
-// Filtre au passage les lignes qui ne contiennent qu'un numéro de page isolé.
+// (transform[5]). Chaque ligne garde ses morceaux bruts (texte + position + largeur), utilisés
+// plus tard pour repérer les tableaux, et une taille de police moyenne, utilisée pour repérer
+// les titres. Filtre au passage les lignes qui ne contiennent qu'un numéro de page isolé.
 function extraireLignes(items) {
   if (!items.length) return []
 
@@ -42,15 +42,49 @@ function extraireLignes(items) {
         finPrecedent = m.x + m.largeur
       }
       const taille = l.tailles.length ? l.tailles.reduce((a, b) => a + b, 0) / l.tailles.length : 10
-      return { y: l.y, texte: texte.trim().replace(/\s+/g, ' '), taille }
+      return { type: 'texte', y: l.y, texte: texte.trim().replace(/\s+/g, ' '), taille, morceaux: l.morceaux }
     })
     .filter((l) => l.texte.length > 0)
     .filter((l) => !/^\d{1,4}$/.test(l.texte)) // numéro de page isolé
 }
 
+// Découpe les morceaux d'une ligne en "cellules" : un espacement horizontal nettement plus
+// large qu'un simple espace entre mots (seuil dérivé de la taille du corps du texte) indique
+// probablement une colonne de tableau plutôt qu'une continuation de phrase.
+function decouperEnCellules(morceaux, seuil) {
+  if (!morceaux.length) return []
+  const cellules = []
+  let texte = morceaux[0].texte
+  let finPrecedent = morceaux[0].x + morceaux[0].largeur
+  for (let i = 1; i < morceaux.length; i++) {
+    const m = morceaux[i]
+    if (m.x - finPrecedent > seuil) {
+      cellules.push(texte.trim())
+      texte = m.texte
+    } else {
+      texte += (m.x - finPrecedent > 1 && !texte.endsWith(' ') && !m.texte.startsWith(' ') ? ' ' : '') + m.texte
+    }
+    finPrecedent = m.x + m.largeur
+  }
+  cellules.push(texte.trim())
+  return cellules.filter(Boolean)
+}
+
+// Un bloc ressemble à un tableau si la plupart de ses lignes se découpent en au moins deux
+// cellules, avec un nombre de colonnes cohérent d'une ligne à l'autre. Heuristique basée sur
+// la mise en page, pas une reconnaissance sémantique — imparfaite sur des tableaux irréguliers.
+function ressembleATableau(bloc, tailleCorps) {
+  if (bloc.length < 2 || bloc.some((l) => l.type !== 'texte')) return false
+  const seuil = tailleCorps * 1.5
+  const comptes = bloc.map((l) => decouperEnCellules(l.morceaux, seuil).length)
+  if (comptes.filter((c) => c >= 2).length / bloc.length < 0.7) return false
+  const freq = {}
+  comptes.forEach((c) => { freq[c] = (freq[c] || 0) + 1 })
+  return Math.max(...Object.values(freq)) / bloc.length >= 0.6
+}
+
 // Un titre ressemble presque toujours à une ligne isolée entre deux blancs plus grands que la
 // normale, soit nettement plus grande que le corps du texte, soit courte et TOUT EN MAJUSCULES.
-// C'est une heuristique basée sur la mise en page, pas une analyse sémantique du document.
 function ressembleAUnTitre(texte, taille, tailleCorps) {
   if (!texte || texte.length > 80) return false
   const grande = taille >= tailleCorps * 1.12
@@ -68,8 +102,10 @@ function niveauTitre(texte) {
   return 3
 }
 
-// Regroupe les lignes d'une page en paragraphes selon l'écart vertical entre elles (un écart
-// nettement plus grand que la normale = saut de paragraphe), en isolant les titres détectés.
+// Regroupe les lignes (texte + éventuelles images) d'une page en paragraphes selon l'écart
+// vertical entre elles. Une image force toujours une frontière de part et d'autre (jamais
+// mêlée à du texte). Un bloc de plusieurs lignes qui ressemble à un tableau devient un tableau ;
+// un bloc d'une seule ligne qui ressemble à un titre devient un titre ; le reste, du texte normal.
 function regrouperEnParagraphes(lignes, tailleCorps) {
   if (lignes.length === 0) return []
 
@@ -81,8 +117,9 @@ function regrouperEnParagraphes(lignes, tailleCorps) {
   const blocs = []
   let courant = [lignes[0]]
   for (let i = 1; i < lignes.length; i++) {
+    const imagePresente = lignes[i].type === 'image' || lignes[i - 1].type === 'image'
     const ecart = lignes[i - 1].y - lignes[i].y
-    if (ecart > ecartTypique * 1.6) {
+    if (imagePresente || ecart > ecartTypique * 1.6) {
       blocs.push(courant)
       courant = [lignes[i]]
     } else {
@@ -91,16 +128,27 @@ function regrouperEnParagraphes(lignes, tailleCorps) {
   }
   blocs.push(courant)
 
-  return blocs.map((bloc) => {
-    const texte = bloc.map((l) => l.texte).join(' ').replace(/\s+/g, ' ').trim()
-    const tailleMoyenne = bloc.reduce((a, l) => a + l.taille, 0) / bloc.length
-    const titre = bloc.length === 1 && ressembleAUnTitre(texte, tailleMoyenne, tailleCorps)
-    return { texte, titre, niveau: titre ? niveauTitre(texte) : null }
-  }).filter((p) => p.texte.length > 0)
+  return blocs
+    .map((bloc) => {
+      if (bloc.length === 1 && bloc[0].type === 'image') {
+        return { type: 'image', url: bloc[0].url, texte: '', titre: false, niveau: null }
+      }
+      if (ressembleATableau(bloc, tailleCorps)) {
+        const seuil = tailleCorps * 1.5
+        const lignesTableau = bloc.map((l) => decouperEnCellules(l.morceaux, seuil))
+        return { type: 'tableau', lignes: lignesTableau, texte: '', titre: false, niveau: null }
+      }
+      const texte = bloc.map((l) => l.texte).join(' ').replace(/\s+/g, ' ').trim()
+      const tailleMoyenne = bloc.reduce((a, l) => a + l.taille, 0) / bloc.length
+      const titre = bloc.length === 1 && ressembleAUnTitre(texte, tailleMoyenne, tailleCorps)
+      return { type: 'texte', texte, titre, niveau: titre ? niveauTitre(texte) : null }
+    })
+    .filter((p) => p.type !== 'texte' || p.texte.length > 0)
 }
 
 // Recolle le dernier paragraphe d'une page avec le premier de la suivante quand tout indique
-// qu'il s'agit de la même phrase coupée par le saut de page. Les titres ne sont jamais fusionnés.
+// qu'il s'agit de la même phrase coupée par le saut de page. Titres, images et tableaux ne sont
+// jamais fusionnés (ni entre eux, ni avec du texte adjacent).
 function fusionnerPages(paragraphesParPage) {
   const finPhrase = /[.!?…»"'”)\]]\s*$/
   const resultat = []
@@ -108,7 +156,11 @@ function fusionnerPages(paragraphesParPage) {
   for (const page of paragraphesParPage) {
     for (const p of page) {
       const precedent = resultat[resultat.length - 1]
-      if (!p.titre && precedent && !precedent.titre && !finPhrase.test(precedent.texte)) {
+      const fusionnable =
+        p.type === 'texte' && !p.titre &&
+        precedent?.type === 'texte' && !precedent.titre &&
+        !finPhrase.test(precedent.texte)
+      if (fusionnable) {
         resultat[resultat.length - 1] = { ...precedent, texte: precedent.texte + ' ' + p.texte }
       } else {
         resultat.push(p)
@@ -150,8 +202,92 @@ function decouperEnSections(paragraphes) {
   })
 }
 
-// Extrait le texte de tout le PDF et le structure en sections + table des matières.
-async function extrairePdf(url, onProgression) {
+// Rend une page en canvas puis, en rejouant sa liste d'opérateurs, retrouve la position de
+// chaque image dessinée (en suivant la pile save/restore/transform) pour découper la portion
+// correspondante du canvas déjà rendu. Ignore les toutes petites images (puces, filets,
+// logos minuscules) pour ne garder que les vraies illustrations/schémas/photos.
+async function extraireImagesPage(page, pdfjsLib, echelle = 1.5) {
+  const { OPS } = pdfjsLib
+  const viewport = page.getViewport({ scale: echelle })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  const ctx = canvas.getContext('2d')
+  await page.render({ canvasContext: ctx, viewport }).promise
+
+  const opList = await page.getOperatorList()
+
+  function multiplier(m1, m2) {
+    return [
+      m1[0] * m2[0] + m1[1] * m2[2],
+      m1[0] * m2[1] + m1[1] * m2[3],
+      m1[2] * m2[0] + m1[3] * m2[2],
+      m1[2] * m2[1] + m1[3] * m2[3],
+      m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+      m1[4] * m2[1] + m1[5] * m2[3] + m2[5],
+    ]
+  }
+
+  let ctm = [1, 0, 0, 1, 0, 0]
+  const pile = []
+  const rectangles = []
+
+  for (let i = 0; i < opList.fnArray.length; i++) {
+    const fn = opList.fnArray[i]
+    const args = opList.argsArray[i]
+    if (fn === OPS.save) {
+      pile.push(ctm)
+    } else if (fn === OPS.restore) {
+      ctm = pile.pop() || [1, 0, 0, 1, 0, 0]
+    } else if (fn === OPS.transform) {
+      ctm = multiplier(args, ctm)
+    } else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject || fn === OPS.paintImageMaskXObject) {
+      const coins = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => [
+        ctm[0] * x + ctm[2] * y + ctm[4],
+        ctm[1] * x + ctm[3] * y + ctm[5],
+      ])
+      const xs = coins.map((c) => c[0])
+      const ys = coins.map((c) => c[1])
+      rectangles.push({ xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Math.min(...ys), yMax: Math.max(...ys) })
+    }
+  }
+
+  const images = []
+  for (const rect of rectangles) {
+    const [px1, py1] = viewport.convertToViewportPoint(rect.xMin, rect.yMax)
+    const [px2, py2] = viewport.convertToViewportPoint(rect.xMax, rect.yMin)
+    const largeur = Math.round(px2 - px1)
+    const hauteur = Math.round(py2 - py1)
+    if (largeur < 40 || hauteur < 40) continue
+
+    const decoupe = document.createElement('canvas')
+    decoupe.width = largeur
+    decoupe.height = hauteur
+    decoupe.getContext('2d').drawImage(canvas, px1, py1, largeur, hauteur, 0, 0, largeur, hauteur)
+    images.push({ y: rect.yMin, dataUrl: decoupe.toDataURL('image/jpeg', 0.85) })
+  }
+
+  return images
+}
+
+async function televerserImage(slug, nom, dataUrl) {
+  try {
+    const res = await fetch(`/api/livres/${slug}/image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nom, dataUrl }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.url || null
+  } catch {
+    return null
+  }
+}
+
+// Extrait le texte (et les images) de tout le PDF et le structure en sections + table des matières.
+async function extrairePdf(url, slug, onProgression) {
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf')
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.js`
 
@@ -163,8 +299,19 @@ async function extrairePdf(url, onProgression) {
     const page = await doc.getPage(i)
     const contenu = await page.getTextContent()
     const lignes = extraireLignes(contenu.items)
+
+    if (slug) {
+      const images = await extraireImagesPage(page, pdfjsLib)
+      for (const img of images) {
+        const nom = `p${i}-${Math.round(img.y)}-${Math.random().toString(36).slice(2, 7)}`
+        const url2 = await televerserImage(slug, nom, img.dataUrl)
+        if (url2) lignes.push({ type: 'image', y: img.y, url: url2 })
+      }
+      lignes.sort((a, b) => b.y - a.y)
+    }
+
     lignesParPage.push(lignes)
-    for (const l of lignes) toutesLesTailles.push(l.taille)
+    for (const l of lignes) if (l.type === 'texte') toutesLesTailles.push(l.taille)
     onProgression?.(Math.round((i / doc.numPages) * 50))
   }
 
@@ -205,7 +352,7 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
 
     async function charger() {
       try {
-        const resultat = await extrairePdf(url, (p) => { if (!annule) setProgression(p) })
+        const resultat = await extrairePdf(url, slug, (p) => { if (!annule) setProgression(p) })
         if (annule) return
         setTableMatieres(resultat.tableMatieres)
         setSections(resultat.sections)
@@ -228,8 +375,7 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
   }, [url, slug, contenuInitial])
 
   // Mémorise la position de lecture pour l'utilisateur connecté, afin de reprendre au même
-  // endroit à la prochaine ouverture. On ignore le tout premier rendu (arrivée sur la section
-  // déjà sauvegardée) pour ne pas ré-écrire inutilement la même valeur.
+  // endroit à la prochaine ouverture.
   useEffect(() => {
     if (!sections) return
     if (premierRenduRef.current) { premierRenduRef.current = false; return }
@@ -280,10 +426,20 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
 
   const indexEffectif = Math.min(sectionIndex, sections.length - 1)
   const section = sections[indexEffectif]
-  const texteSection = section.blocs.map((p) => (p.titre ? `§TITRE§${p.texte}` : p.texte)).join('\n\n')
 
-  const titreAudio = section.blocs[0]?.titre ? section.blocs[0].texte : ''
-  const texteAudio = (titreAudio ? section.blocs.slice(1) : section.blocs).map((p) => p.texte).join('\n\n')
+  const texteSection = section.blocs
+    .map((p) => {
+      if (p.type === 'image') return `§IMAGE§${p.url}`
+      if (p.type === 'tableau') return `§TABLEAU§${JSON.stringify(p.lignes)}`
+      return p.titre ? `§TITRE§${p.texte}` : p.texte
+    })
+    .join('\n\n')
+
+  const titreAudio = section.blocs[0]?.type === 'texte' && section.blocs[0]?.titre ? section.blocs[0].texte : ''
+  const texteAudio = (titreAudio ? section.blocs.slice(1) : section.blocs)
+    .filter((p) => p.type === 'texte')
+    .map((p) => p.texte)
+    .join('\n\n')
 
   return (
     <div>

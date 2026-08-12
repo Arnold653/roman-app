@@ -21,10 +21,12 @@ export default function LoginPage() {
       if (error) setMessage(error.message)
       else window.location.href = '/'
     } else {
+      const pseudoNettoye = pseudo.trim().replace(/\s+/g, ' ')
+      if (!pseudoNettoye) { setMessage("Le nom d'utilisateur ne peut pas être vide."); return }
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { pseudo } },
+        options: { data: { pseudo: pseudoNettoye } },
       })
       if (error) setMessage(error.message)
       else setMessage('Compte créé. Vérifie ta boîte mail pour confirmer.')
