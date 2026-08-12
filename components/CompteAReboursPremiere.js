@@ -65,6 +65,7 @@ export default function CompteAReboursPremiere({
   couvertureUrl,
   degrade,
   compact = false,
+  brouillon = false,
 }) {
   const router = useRouter()
   const cible = new Date(publieLe).getTime()
@@ -103,6 +104,11 @@ export default function CompteAReboursPremiere({
               <PastilleEnDirect />
               {sorti ? "C'est sorti" : 'Première'}
             </span>
+            {brouillon && (
+              <span className="absolute top-3 right-3 font-mono text-[0.55rem] uppercase tracking-widest text-grenat border border-papier/20 rounded-full px-2 py-0.5 bg-encre/60">
+                Brouillon
+              </span>
+            )}
             <div>
               <h3 className="font-display text-base text-papier leading-tight mb-1.5 line-clamp-1">{romanTitre}</h3>
               {sorti ? (

@@ -86,14 +86,23 @@ export default async function HomePage() {
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
   ])
 
-  // Premières à venir, tous romans publiés confondus — la plus proche par roman.
-  const { data: chapitresProgrammes } = await supabase
+  const estAdmin = user?.email === process.env.ADMIN_EMAIL
+
+  // Premières à venir, tous romans confondus — la plus proche par roman.
+  // L'admin voit aussi les Premières de ses romans encore en brouillon (utile pour tester
+  // avant publication) ; le grand public ne voit que celles des romans publiés.
+  let requetePremieres = supabase
     .from('chapitres')
     .select('numero, titre, publie_le, roman_id, romans!inner(id, titre, slug, couverture_url, statut_visibilite)')
     .eq('notifie', false)
     .gt('publie_le', new Date().toISOString())
-    .eq('romans.statut_visibilite', 'publie')
     .order('publie_le', { ascending: true })
+
+  if (!estAdmin) {
+    requetePremieres = requetePremieres.eq('romans.statut_visibilite', 'publie')
+  }
+
+  const { data: chapitresProgrammes } = await requetePremieres
 
   const vues = new Set()
   const premieresAVenir = []
@@ -141,6 +150,7 @@ export default async function HomePage() {
                 romanSlug={c.romans?.slug}
                 couvertureUrl={c.romans?.couverture_url}
                 degrade={degradeDe(c.romans?.id || c.roman_id)}
+                brouillon={c.romans?.statut_visibilite !== 'publie'}
               />
             ))}
           </div>
