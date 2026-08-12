@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import CorpsChapitre from './CorpsChapitre'
 import LectureAudio from './LectureAudio'
 
@@ -93,7 +94,6 @@ function regrouperEnParagraphes(lignes, tailleCorps) {
   return blocs.map((bloc) => {
     const texte = bloc.map((l) => l.texte).join(' ').replace(/\s+/g, ' ').trim()
     const tailleMoyenne = bloc.reduce((a, l) => a + l.taille, 0) / bloc.length
-    // Un titre est presque toujours seul dans son bloc (une ligne entourée de blancs)
     const titre = bloc.length === 1 && ressembleAUnTitre(texte, tailleMoyenne, tailleCorps)
     return { texte, titre, niveau: titre ? niveauTitre(texte) : null }
   }).filter((p) => p.texte.length > 0)
@@ -118,7 +118,6 @@ function fusionnerPages(paragraphesParPage) {
   return resultat
 }
 
-// Un libellé court pour la pastille de navigation, à partir du titre détecté.
 function libellePastille(texte) {
   const t = texte.trim()
   const mChap = t.match(/^chapitre\s+(\d+)/i)
@@ -129,8 +128,7 @@ function libellePastille(texte) {
   return mots.length > 16 ? mots.slice(0, 16) + '…' : mots
 }
 
-// Découpe le livre entier en "pages de lecture" aux frontières des titres de niveau 1 ou 2
-// (Partie, Chapitre, Dédicace, Avant-propos...), pour éviter un défilement infini.
+// Découpe le livre entier en "pages de lecture" aux frontières des titres de niveau 1 ou 2.
 function decouperEnSections(paragraphes) {
   const frontieres = paragraphes
     .map((p, i) => ({ titre: p.titre, niveau: p.niveau, i }))
@@ -152,59 +150,74 @@ function decouperEnSections(paragraphes) {
   })
 }
 
-export default function LecteurPDF({ url }) {
-  const [sections, setSections] = useState(null)
-  const [tableMatieres, setTableMatieres] = useState([])
-  const [sectionIndex, setSectionIndex] = useState(0)
-  const [chargement, setChargement] = useState(true)
+// Extrait le texte de tout le PDF et le structure en sections + table des matières.
+async function extrairePdf(url, onProgression) {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.js`
+
+  const doc = await pdfjsLib.getDocument(url).promise
+
+  const lignesParPage = []
+  const toutesLesTailles = []
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const contenu = await page.getTextContent()
+    const lignes = extraireLignes(contenu.items)
+    lignesParPage.push(lignes)
+    for (const l of lignes) toutesLesTailles.push(l.taille)
+    onProgression?.(Math.round((i / doc.numPages) * 50))
+  }
+
+  const taillesTriees = [...toutesLesTailles].sort((a, b) => a - b)
+  const tailleCorps = taillesTriees[Math.floor(taillesTriees.length / 2)] || 10
+
+  const paragraphesParPage = lignesParPage.map((lignes, i) => {
+    onProgression?.(50 + Math.round(((i + 1) / lignesParPage.length) * 50))
+    return regrouperEnParagraphes(lignes, tailleCorps)
+  })
+
+  const paragraphesFusionnes = fusionnerPages(paragraphesParPage)
+  const tableMatieres = paragraphesFusionnes
+    .map((p, i) => ({ ...p, i }))
+    .filter((p) => p.titre)
+    .map((p) => ({ texte: p.texte, niveau: p.niveau, index: p.i }))
+
+  return { sections: decouperEnSections(paragraphesFusionnes), tableMatieres }
+}
+
+export default function LecteurPDF({ url, slug, livreId, contenuInitial, sectionInitiale = 0 }) {
+  const [sections, setSections] = useState(contenuInitial?.sections || null)
+  const [tableMatieres, setTableMatieres] = useState(contenuInitial?.tableMatieres || [])
+  const [sectionIndex, setSectionIndex] = useState(sectionInitiale)
+  const [chargement, setChargement] = useState(!contenuInitial)
   const [progression, setProgression] = useState(0)
   const [erreur, setErreur] = useState('')
+  const [tocOuverte, setTocOuverte] = useState(false)
   const cibleScrollRef = useRef(null)
+  const premierRenduRef = useRef(true)
 
+  // Extraction côté client uniquement si aucun cache n'a été fourni par la page serveur
+  // (c'est-à-dire au tout premier chargement de ce livre, par n'importe quel visiteur —
+  // les suivants profitent directement du cache stocké en base et n'ont plus rien à parser).
   useEffect(() => {
+    if (contenuInitial) return
     let annule = false
 
     async function charger() {
       try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf')
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.js`
-
-        const doc = await pdfjsLib.getDocument(url).promise
+        const resultat = await extrairePdf(url, (p) => { if (!annule) setProgression(p) })
         if (annule) return
-
-        // Première passe : on récupère toutes les lignes de toutes les pages pour établir
-        // une taille de police "corps du texte" de référence sur l'ensemble du livre, avant
-        // de pouvoir décider quelles lignes sont des titres.
-        const lignesParPage = []
-        const toutesLesTailles = []
-        for (let i = 1; i <= doc.numPages; i++) {
-          const page = await doc.getPage(i)
-          const contenu = await page.getTextContent()
-          const lignes = extraireLignes(contenu.items)
-          lignesParPage.push(lignes)
-          for (const l of lignes) toutesLesTailles.push(l.taille)
-          if (!annule) setProgression(Math.round((i / doc.numPages) * 50))
-        }
-        if (annule) return
-
-        const taillesTriees = [...toutesLesTailles].sort((a, b) => a - b)
-        const tailleCorps = taillesTriees[Math.floor(taillesTriees.length / 2)] || 10
-
-        const paragraphesParPage = lignesParPage.map((lignes, i) => {
-          if (!annule) setProgression(50 + Math.round(((i + 1) / lignesParPage.length) * 50))
-          return regrouperEnParagraphes(lignes, tailleCorps)
-        })
-        if (annule) return
-
-        const paragraphesFusionnes = fusionnerPages(paragraphesParPage)
-        const toc = paragraphesFusionnes
-          .map((p, i) => ({ ...p, i }))
-          .filter((p) => p.titre)
-          .map((p) => ({ texte: p.texte, niveau: p.niveau, index: p.i }))
-
-        setTableMatieres(toc)
-        setSections(decouperEnSections(paragraphesFusionnes))
+        setTableMatieres(resultat.tableMatieres)
+        setSections(resultat.sections)
         setChargement(false)
+
+        if (slug) {
+          fetch(`/api/livres/${slug}/cache`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contenu: resultat }),
+          }).catch(() => {})
+        }
       } catch (e) {
         if (!annule) { setErreur(`Impossible de charger ce livre (${e?.message || e}).`); setChargement(false) }
       }
@@ -212,10 +225,30 @@ export default function LecteurPDF({ url }) {
 
     charger()
     return () => { annule = true }
-  }, [url])
+  }, [url, slug, contenuInitial])
 
-  // Après un changement de section (depuis la table des matières ou les pastilles), on remonte
-  // en haut, ou on défile jusqu'au sous-titre précis visé s'il y en avait un.
+  // Mémorise la position de lecture pour l'utilisateur connecté, afin de reprendre au même
+  // endroit à la prochaine ouverture. On ignore le tout premier rendu (arrivée sur la section
+  // déjà sauvegardée) pour ne pas ré-écrire inutilement la même valeur.
+  useEffect(() => {
+    if (!sections) return
+    if (premierRenduRef.current) { premierRenduRef.current = false; return }
+    if (!livreId) return
+
+    async function enregistrer() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('lecture_progress_livres').upsert({
+        user_id: user.id,
+        livre_id: livreId,
+        derniere_section: sectionIndex,
+        updated_at: new Date().toISOString(),
+      })
+    }
+    enregistrer()
+  }, [sectionIndex, sections, livreId])
+
   useEffect(() => {
     if (!sections) return
     const id = cibleScrollRef.current
@@ -232,6 +265,7 @@ export default function LecteurPDF({ url }) {
     const idLocal = `p-${indexGlobal - sections[k].debut}`
     cibleScrollRef.current = idLocal
     setSectionIndex(k)
+    setTocOuverte(false)
   }
 
   if (erreur) return <p className="text-papier/40 text-sm font-mono py-6">{erreur}</p>
@@ -244,37 +278,45 @@ export default function LecteurPDF({ url }) {
     )
   }
 
-  const section = sections[sectionIndex]
+  const indexEffectif = Math.min(sectionIndex, sections.length - 1)
+  const section = sections[indexEffectif]
   const texteSection = section.blocs.map((p) => (p.titre ? `§TITRE§${p.texte}` : p.texte)).join('\n\n')
 
-  // Pour la lecture audio : le titre de la section (lu séparément par LectureAudio) et le reste
-  // du texte, sans marqueurs de mise en forme.
   const titreAudio = section.blocs[0]?.titre ? section.blocs[0].texte : ''
   const texteAudio = (titreAudio ? section.blocs.slice(1) : section.blocs).map((p) => p.texte).join('\n\n')
 
   return (
     <div>
       {tableMatieres.length > 1 && (
-        <div className="border border-ligne rounded-lg p-4 mb-8">
-          <p className="text-or text-xs font-mono uppercase tracking-widest mb-3">Table des matières</p>
-          <ul className="space-y-1.5">
-            {tableMatieres.map((t) => (
-              <li key={t.index} style={{ paddingLeft: `${(t.niveau - 1) * 14}px` }}>
-                <button
-                  onClick={() => allerAuTitre(t.index)}
-                  className={`text-left transition-colors hover:text-or ${
-                    t.niveau === 1
-                      ? 'text-papier/85 text-sm font-semibold uppercase tracking-wide'
-                      : t.niveau === 2
-                      ? 'text-papier/70 text-sm'
-                      : 'text-papier/40 text-xs italic'
-                  }`}
-                >
-                  {t.texte}
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div className="mb-8">
+          <button
+            onClick={() => setTocOuverte((v) => !v)}
+            className="text-xs font-mono uppercase tracking-widest text-papier/50 hover:text-or transition-colors border border-ligne rounded-full px-3 py-1.5"
+          >
+            Table des matières {tocOuverte ? '▴' : '▾'}
+          </button>
+          {tocOuverte && (
+            <div className="border border-ligne rounded-lg p-4 mt-2">
+              <ul className="space-y-1.5">
+                {tableMatieres.map((t) => (
+                  <li key={t.index} style={{ paddingLeft: `${(t.niveau - 1) * 14}px` }}>
+                    <button
+                      onClick={() => allerAuTitre(t.index)}
+                      className={`text-left transition-colors hover:text-or ${
+                        t.niveau === 1
+                          ? 'text-papier/85 text-sm font-semibold uppercase tracking-wide'
+                          : t.niveau === 2
+                          ? 'text-papier/70 text-sm'
+                          : 'text-papier/40 text-xs italic'
+                      }`}
+                    >
+                      {t.texte}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -285,7 +327,7 @@ export default function LecteurPDF({ url }) {
               key={i}
               onClick={() => setSectionIndex(i)}
               className={`font-mono text-xs rounded-full px-3 py-1 border transition-colors ${
-                i === sectionIndex ? 'border-or text-or' : 'border-papier/15 text-papier/35 hover:border-papier/35 hover:text-papier/60'
+                i === indexEffectif ? 'border-or text-or' : 'border-papier/15 text-papier/35 hover:border-papier/35 hover:text-papier/60'
               }`}
             >
               {s.pilLabel}
@@ -302,14 +344,14 @@ export default function LecteurPDF({ url }) {
 
       {sections.length > 1 && (
         <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
-          {sectionIndex > 0 ? (
-            <button onClick={() => setSectionIndex(sectionIndex - 1)} className="text-papier/50 hover:text-or transition-colors">
-              ← {sections[sectionIndex - 1].pilLabel}
+          {indexEffectif > 0 ? (
+            <button onClick={() => setSectionIndex(indexEffectif - 1)} className="text-papier/50 hover:text-or transition-colors">
+              ← {sections[indexEffectif - 1].pilLabel}
             </button>
           ) : <span />}
-          {sectionIndex < sections.length - 1 ? (
-            <button onClick={() => setSectionIndex(sectionIndex + 1)} className="text-papier/50 hover:text-or transition-colors">
-              {sections[sectionIndex + 1].pilLabel} →
+          {indexEffectif < sections.length - 1 ? (
+            <button onClick={() => setSectionIndex(indexEffectif + 1)} className="text-papier/50 hover:text-or transition-colors">
+              {sections[indexEffectif + 1].pilLabel} →
             </button>
           ) : <span />}
         </div>

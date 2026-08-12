@@ -10,6 +10,18 @@ export default async function LivreDetailPage({ params }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Livre introuvable.</div>
   }
 
+  let sectionInitiale = 0
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: progression } = await supabase
+      .from('lecture_progress_livres')
+      .select('derniere_section')
+      .eq('user_id', user.id)
+      .eq('livre_id', livre.id)
+      .maybeSingle()
+    sectionInitiale = progression?.derniere_section || 0
+  }
+
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
       {livre.genre && (
@@ -26,7 +38,13 @@ export default async function LivreDetailPage({ params }) {
         <BadgeTransparence generePar={livre.genere_par_ia} verifiePar={livre.verifie_par} />
       </div>
 
-      <LecteurPDF url={livre.fichier_url} />
+      <LecteurPDF
+        url={livre.fichier_url}
+        slug={livre.slug}
+        livreId={livre.id}
+        contenuInitial={livre.contenu_extrait || null}
+        sectionInitiale={sectionInitiale}
+      />
     </div>
   )
 }

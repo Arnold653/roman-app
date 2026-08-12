@@ -57,6 +57,24 @@ export async function POST(request) {
   return NextResponse.json({ ok: true, slug })
 }
 
+export async function PATCH(request) {
+  if (!(await verifierAdmin())) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+  }
+  const body = await request.json()
+  const admin = createAdminClient()
+
+  if (body.type === 'vider_cache') {
+    // Force une nouvelle extraction du texte au prochain chargement (ex. après une
+    // amélioration du moteur d'extraction) au lieu de garder l'ancien résultat en cache.
+    const { error } = await admin.from('livres').update({ contenu_extrait: null, contenu_extrait_le: null }).eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
+  return NextResponse.json({ error: 'Type inconnu' }, { status: 400 })
+}
+
 export async function DELETE(request) {
   if (!(await verifierAdmin())) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })

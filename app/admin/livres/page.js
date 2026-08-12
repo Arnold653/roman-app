@@ -52,6 +52,15 @@ export default function AdminLivresPage() {
     if (res.ok) { setMessage('Supprimé.'); charger() }
   }
 
+  async function viderCache(livre) {
+    const res = await fetch('/api/admin/livre', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'vider_cache', id: livre.id }),
+    })
+    if (res.ok) { setMessage('Cache vidé — le texte sera ré-extrait à la prochaine ouverture.'); charger() }
+  }
+
   const champ = (label, field, type = 'text') => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
@@ -110,7 +119,16 @@ export default function AdminLivresPage() {
         {livres?.map((l) => (
           <div key={l.id} className="flex items-center justify-between bg-encreClair rounded-md px-4 py-3">
             <span className="text-sm text-papier/70">{l.titre}</span>
-            <button onClick={() => supprimer(l)} className="text-xs font-mono uppercase text-papier/40 hover:text-grenat transition-colors">Suppr.</button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => viderCache(l)}
+                disabled={!l.contenu_extrait}
+                className="text-xs font-mono uppercase text-papier/40 hover:text-or transition-colors disabled:opacity-40 disabled:hover:text-papier/40"
+              >
+                {l.contenu_extrait ? 'Vider le cache' : 'Pas encore extrait'}
+              </button>
+              <button onClick={() => supprimer(l)} className="text-xs font-mono uppercase text-papier/40 hover:text-grenat transition-colors">Suppr.</button>
+            </div>
           </div>
         ))}
         {livres?.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun livre publié.</p>}
