@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CommentSection from '@/components/CommentSection'
 import CorpsChapitre from '@/components/CorpsChapitre'
@@ -8,6 +9,11 @@ import BadgeTransparence from '@/components/BadgeTransparence'
 
 export default async function RomanPage({ params, searchParams }) {
   const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(`/login?suite=/roman/${params.slug}`)
+  }
 
   const { data: roman } = await supabase
     .from('romans')
@@ -15,7 +21,9 @@ export default async function RomanPage({ params, searchParams }) {
     .eq('slug', params.slug)
     .single()
 
-  if (!roman) {
+  const estAdmin = user.email === process.env.ADMIN_EMAIL
+
+  if (!roman || (roman.statut_visibilite !== 'publie' && !estAdmin)) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Roman introuvable.</div>
   }
 
@@ -31,18 +39,13 @@ export default async function RomanPage({ params, searchParams }) {
   let numeroDemande = searchParams?.ch ? Number(searchParams.ch) : null
 
   if (!numeroDemande) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: progression } = await supabase
-        .from('lecture_progress')
-        .select('dernier_chapitre')
-        .eq('user_id', user.id)
-        .eq('roman_id', roman.id)
-        .maybeSingle()
-      numeroDemande = progression?.dernier_chapitre || premier?.numero
-    } else {
-      numeroDemande = premier?.numero
-    }
+    const { data: progression } = await supabase
+      .from('lecture_progress')
+      .select('dernier_chapitre')
+      .eq('user_id', user.id)
+      .eq('roman_id', roman.id)
+      .maybeSingle()
+    numeroDemande = progression?.dernier_chapitre || premier?.numero
   }
 
   const courant = chapitres?.find((c) => c.numero === numeroDemande) || premier
@@ -52,6 +55,11 @@ export default async function RomanPage({ params, searchParams }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
+      {roman.statut_visibilite !== 'publie' && (
+        <p className="font-mono text-[0.65rem] uppercase tracking-widest text-grenat border border-grenat/40 rounded-full px-2.5 py-1 inline-block mb-4">
+          Brouillon — visible pour toi seul
+        </p>
+      )}
       {courant?.numero === chapitres?.[0]?.numero ? (
         <div className="mb-12 lever">
           <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/30 rounded-full px-2.5 py-1">

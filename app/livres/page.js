@@ -16,7 +16,7 @@ function degradeDe(id) {
 
 export default async function LivresPage() {
   const supabase = createClient()
-  const { data: livres } = await supabase.from('livres').select('*').order('created_at', { ascending: false })
+  const { data: livres } = await supabase.from('livres').select('*').eq('statut', 'publie').order('created_at', { ascending: false })
 
   return (
     <div className="px-6 pt-20 pb-24 max-w-6xl mx-auto">

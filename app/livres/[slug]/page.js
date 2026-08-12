@@ -1,29 +1,39 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import BadgeTransparence from '@/components/BadgeTransparence'
 import LecteurPDF from '@/components/LecteurPDF'
 
 export default async function LivreDetailPage({ params }) {
   const supabase = createClient()
-  const { data: livre } = await supabase.from('livres').select('*').eq('slug', params.slug).single()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!livre) {
+  if (!user) {
+    redirect(`/login?suite=/livres/${params.slug}`)
+  }
+
+  const { data: livre } = await supabase.from('livres').select('*').eq('slug', params.slug).single()
+  const estAdmin = user.email === process.env.ADMIN_EMAIL
+
+  if (!livre || (livre.statut !== 'publie' && !estAdmin)) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Livre introuvable.</div>
   }
 
   let sectionInitiale = 0
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    const { data: progression } = await supabase
-      .from('lecture_progress_livres')
-      .select('derniere_section')
-      .eq('user_id', user.id)
-      .eq('livre_id', livre.id)
-      .maybeSingle()
-    sectionInitiale = progression?.derniere_section || 0
-  }
+  const { data: progression } = await supabase
+    .from('lecture_progress_livres')
+    .select('derniere_section')
+    .eq('user_id', user.id)
+    .eq('livre_id', livre.id)
+    .maybeSingle()
+  sectionInitiale = progression?.derniere_section || 0
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
+      {livre.statut !== 'publie' && (
+        <p className="font-mono text-[0.65rem] uppercase tracking-widest text-grenat border border-grenat/40 rounded-full px-2.5 py-1 inline-block mb-4">
+          Brouillon — visible pour toi seul
+        </p>
+      )}
       {livre.genre && (
         <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/30 rounded-full px-2.5 py-1">
           {livre.genre}

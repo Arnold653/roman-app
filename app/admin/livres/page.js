@@ -1,15 +1,41 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
+import { extraireTexteBrut } from '@/lib/extractionTexte'
+
+function detecterType(nomFichier) {
+  const ext = nomFichier.split('.').pop().toLowerCase()
+  if (ext === 'md') return 'md'
+  if (ext === 'txt') return 'txt'
+  return 'pdf'
+}
+
+async function televerserImageAdmin(slug, nom, dataUrl) {
+  try {
+    const res = await fetch('/api/admin/livre/image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, nom, dataUrl }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.url || null
+  } catch {
+    return null
+  }
+}
 
 export default function AdminLivresPage() {
   const [livres, setLivres] = useState(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [progression, setProgression] = useState(null)
   const [form, setForm] = useState({
     titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true,
   })
   const [fichier, setFichier] = useState(null)
+  const [apercu, setApercu] = useState(null) // { contenu, sections } prêt à être envoyé
 
   useEffect(() => { charger() }, [])
 
@@ -22,15 +48,50 @@ export default function AdminLivresPage() {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
-  async function envoyer(e) {
-    e.preventDefault()
-    if (!fichier) { setMessage('Choisis un fichier PDF.'); return }
+  // Extrait le fichier côté admin (une seule fois, à l'upload) au lieu de laisser le premier
+  // lecteur public attendre l'extraction — but même de cette évolution.
+  async function extraireEtApercevoir() {
+    if (!fichier) { setMessage('Choisis un fichier.'); return }
+    if (!form.slug) { setMessage('Renseigne le slug avant d\'extraire (utilisé pour stocker les images).'); return }
+    setLoading(true)
+    setMessage('')
+    setProgression(0)
+
+    try {
+      const type = detecterType(fichier.name)
+      let contenu
+      if (type === 'pdf') {
+        const bytes = new Uint8Array(await fichier.arrayBuffer())
+        contenu = await extrairePdfDepuisUrl(
+          bytes,
+          (nom, dataUrl) => televerserImageAdmin(form.slug, nom, dataUrl),
+          (p) => setProgression(p)
+        )
+      } else {
+        const texte = await fichier.text()
+        contenu = extraireTexteBrut(texte)
+      }
+      setApercu({ contenu, type })
+      setMessage(`Extraction terminée : ${contenu.sections.length} section(s) détectée(s). Vérifie l'aperçu ci-dessous avant de créer le livre.`)
+    } catch (e) {
+      setMessage(`Erreur d'extraction : ${e?.message || e}`)
+    } finally {
+      setLoading(false)
+      setProgression(null)
+    }
+  }
+
+  async function envoyer(statutFinal) {
+    if (!fichier || !apercu) { setMessage('Extrais le fichier d\'abord.'); return }
     setLoading(true)
     setMessage('')
 
     const data = new FormData()
     Object.entries(form).forEach(([k, v]) => data.append(k, v))
     data.append('fichier', fichier)
+    data.append('fichier_type', apercu.type)
+    data.append('contenu_extrait', JSON.stringify(apercu.contenu))
+    data.append('statut', statutFinal)
 
     const res = await fetch('/api/admin/livre', { method: 'POST', body: data })
     const resultat = await res.json()
@@ -39,9 +100,10 @@ export default function AdminLivresPage() {
     if (!res.ok) {
       setMessage(`Erreur : ${resultat.error}`)
     } else {
-      setMessage(`Publié ✓ — /livres/${resultat.slug}`)
+      setMessage(`${statutFinal === 'publie' ? 'Publié' : 'Enregistré en brouillon'} ✓ — /livres/${resultat.slug}`)
       setForm({ titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true })
       setFichier(null)
+      setApercu(null)
       charger()
     }
   }
@@ -59,6 +121,16 @@ export default function AdminLivresPage() {
       body: JSON.stringify({ type: 'vider_cache', id: livre.id }),
     })
     if (res.ok) { setMessage('Cache vidé — le texte sera ré-extrait à la prochaine ouverture.'); charger() }
+  }
+
+  async function basculerStatut(livre) {
+    const nouveauStatut = livre.statut === 'publie' ? 'brouillon' : 'publie'
+    const res = await fetch('/api/admin/livre', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'statut', id: livre.id, statut: nouveauStatut }),
+    })
+    if (res.ok) charger()
   }
 
   const champ = (label, field, type = 'text') => (
@@ -79,11 +151,11 @@ export default function AdminLivresPage() {
       <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
       <h1 className="font-display text-4xl text-papier mb-2">Publier un livre</h1>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
-        Un ouvrage complet livré en un seul fichier PDF — distinct des romans publiés chapitre par chapitre.
+        Un ouvrage complet livré en un seul fichier (PDF, Markdown ou texte) — distinct des romans publiés chapitre par chapitre.
         <br /><a href="/admin" className="text-or hover:brightness-125">← Retour à l'admin des romans</a>
       </p>
 
-      <form onSubmit={envoyer} className="space-y-6">
+      <div className="space-y-6">
         {champ('Titre du livre', 'titre')}
         {champ('Slug (identifiant dans l\'URL)', 'slug')}
         {champ('Auteur (optionnel)', 'auteur')}
@@ -91,9 +163,15 @@ export default function AdminLivresPage() {
         {champ('Genre', 'genre')}
 
         <div>
-          <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">Fichier PDF</label>
-          <input type="file" accept="application/pdf" onChange={(e) => setFichier(e.target.files?.[0] || null)}
-            className="w-full text-papier text-sm" />
+          <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+            Fichier (PDF, .md ou .txt)
+          </label>
+          <input
+            type="file" accept=".pdf,.md,.txt,application/pdf,text/markdown,text/plain"
+            onChange={(e) => { setFichier(e.target.files?.[0] || null); setApercu(null) }}
+            className="w-full text-papier text-sm"
+          />
+          <p className="text-papier/30 text-xs font-mono mt-2">L'EPUB n'est pas encore pris en charge.</p>
         </div>
 
         <div className="border-t border-ligne pt-5">
@@ -105,21 +183,59 @@ export default function AdminLivresPage() {
           {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
         </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-or text-encre font-medium rounded-lg px-3 py-3.5 hover:brightness-110 transition-all disabled:opacity-50">
-          {loading ? 'Envoi en cours...' : 'Publier ce livre'}
-        </button>
-      </form>
+        {!apercu ? (
+          <button
+            type="button" onClick={extraireEtApercevoir} disabled={loading || !fichier}
+            className="w-full bg-encreClair border border-or/40 text-or font-medium rounded-lg px-3 py-3.5 hover:bg-or/10 transition-all disabled:opacity-50"
+          >
+            {loading ? `Extraction en cours${progression !== null ? ` (${progression}%)` : '...'}` : 'Extraire le texte'}
+          </button>
+        ) : (
+          <div className="border border-ligne rounded-lg p-4 bg-encreClair">
+            <p className="text-papier/70 text-sm mb-3">Aperçu des sections détectées :</p>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {apercu.contenu.sections.map((s, i) => (
+                <span key={i} className="font-mono text-[0.65rem] text-papier/50 border border-ligne rounded-full px-2 py-1">{s.pilLabel}</span>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => envoyer('brouillon')} disabled={loading}
+                className="flex-1 bg-encre border border-ligne text-papier/70 text-sm rounded-lg px-3 py-3 hover:border-papier/30 transition-colors disabled:opacity-50">
+                Enregistrer en brouillon
+              </button>
+              <button type="button" onClick={() => envoyer('publie')} disabled={loading}
+                className="flex-1 bg-or text-encre text-sm font-medium rounded-lg px-3 py-3 hover:brightness-110 transition-all disabled:opacity-50">
+                Publier directement
+              </button>
+            </div>
+            <button type="button" onClick={() => setApercu(null)} className="text-papier/30 text-xs font-mono mt-3 hover:text-papier/50">
+              ← Recommencer l'extraction
+            </button>
+          </div>
+        )}
+      </div>
 
       {message && <p className="text-sm text-papier/60 mt-4 font-mono">{message}</p>}
 
       <div className="filet-or my-14" />
 
-      <p className="text-or text-xs font-mono uppercase tracking-widest mb-6">Livres publiés</p>
+      <p className="text-or text-xs font-mono uppercase tracking-widest mb-6">Livres</p>
       <div className="space-y-2">
         {livres?.map((l) => (
-          <div key={l.id} className="flex items-center justify-between bg-encreClair rounded-md px-4 py-3">
-            <span className="text-sm text-papier/70">{l.titre}</span>
-            <div className="flex items-center gap-3">
+          <div key={l.id} className="bg-encreClair rounded-md px-4 py-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm text-papier/70">{l.titre}</span>
+              <button
+                onClick={() => basculerStatut(l)}
+                className={`text-[0.65rem] font-mono uppercase tracking-wide rounded-full px-2.5 py-1 border ${
+                  l.statut === 'publie' ? 'border-or/40 text-or' : 'border-papier/20 text-papier/40'
+                }`}
+              >
+                {l.statut === 'publie' ? 'Publié' : 'Brouillon'}
+              </button>
+            </div>
+            <div className="flex items-center gap-3 mt-2">
+              <a href={`/admin/livres/${l.id}/modifier`} className="text-xs font-mono uppercase text-papier/40 hover:text-or transition-colors">Modifier le texte</a>
               <button
                 onClick={() => viderCache(l)}
                 disabled={!l.contenu_extrait}
@@ -131,7 +247,7 @@ export default function AdminLivresPage() {
             </div>
           </div>
         ))}
-        {livres?.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun livre publié.</p>}
+        {livres?.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun livre pour le moment.</p>}
       </div>
     </div>
   )

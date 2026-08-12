@@ -79,6 +79,16 @@ export default function AdminPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  async function basculerStatutRoman(roman) {
+    const nouveauStatut = roman.statut_visibilite === 'publie' ? 'brouillon' : 'publie'
+    const res = await fetch('/api/admin/roman', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: nouveauStatut }),
+    })
+    if (res.ok) chargerRomans()
+  }
+
   async function supprimerRoman(roman) {
     if (!confirm(`Supprimer "${roman.titre}" et TOUS ses chapitres ? C'est irréversible.`)) return
     const res = await fetch(`/api/admin/roman?type=roman&id=${roman.id}`, { method: 'DELETE' })
@@ -407,7 +417,15 @@ export default function AdminPage() {
           <div key={roman.id} className="border border-ligne rounded-lg p-5">
             <div className="flex items-start justify-between gap-3 mb-1">
               <h3 className="font-display text-xl text-papier">{roman.titre}</h3>
-              <div className="flex gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+              <div className="flex items-center gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+                <button
+                  onClick={() => basculerStatutRoman(roman)}
+                  className={`rounded-full px-2.5 py-1 border ${
+                    roman.statut_visibilite === 'publie' ? 'border-or/40 text-or' : 'border-papier/20 text-papier/40'
+                  }`}
+                >
+                  {roman.statut_visibilite === 'publie' ? 'Publié' : 'Brouillon'}
+                </button>
                 <button onClick={() => editerRoman(roman)} className="text-papier/50 hover:text-or transition-colors">Éditer</button>
                 <button onClick={() => supprimerRoman(roman)} className="text-papier/50 hover:text-grenat transition-colors">Suppr.</button>
               </div>

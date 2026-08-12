@@ -58,6 +58,15 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: true, corriges })
   }
 
+  if (body.type === 'roman_statut') {
+    const { error } = await admin
+      .from('romans')
+      .update({ statut_visibilite: body.statut === 'publie' ? 'publie' : 'brouillon' })
+      .eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
   if (body.type === 'roman') {
     const { error } = await admin
       .from('romans')

@@ -12,6 +12,11 @@ export default function LoginPage() {
 
   const supabase = createClient()
 
+  function suite() {
+    if (typeof window === 'undefined') return '/'
+    return new URLSearchParams(window.location.search).get('suite') || '/'
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
@@ -19,7 +24,7 @@ export default function LoginPage() {
     if (mode === 'connexion') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
-      else window.location.href = '/'
+      else window.location.href = suite()
     } else {
       const pseudoNettoye = pseudo.trim().replace(/\s+/g, ' ')
       if (!pseudoNettoye) { setMessage("Le nom d'utilisateur ne peut pas être vide."); return }

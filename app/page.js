@@ -54,8 +54,8 @@ export default async function HomePage() {
   const supabase = createClient()
 
   const [{ data: romans }, { data: livres }, { data: { user } }] = await Promise.all([
-    supabase.from('romans').select('id, titre, slug, resume, genre, couverture_url, statut').order('created_at', { ascending: false }),
-    supabase.from('livres').select('id, titre, slug, auteur, genre, description').order('created_at', { ascending: false }),
+    supabase.from('romans').select('id, titre, slug, resume, genre, couverture_url, statut').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }),
+    supabase.from('livres').select('id, titre, slug, auteur, genre, description').eq('statut', 'publie').order('created_at', { ascending: false }),
     supabase.auth.getUser(),
   ])
 

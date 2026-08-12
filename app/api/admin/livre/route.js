@@ -8,8 +8,20 @@ async function verifierAdmin() {
   return user && user.email === process.env.ADMIN_EMAIL
 }
 
-export async function GET() {
+export async function GET(request) {
+  if (!(await verifierAdmin())) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
+  }
   const admin = createAdminClient()
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+
+  if (id) {
+    const { data: livre, error } = await admin.from('livres').select('*').eq('id', id).maybeSingle()
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ livre })
+  }
+
   const { data: livres, error } = await admin.from('livres').select('*').order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ livres })
@@ -31,26 +43,42 @@ export async function POST(request) {
   const verifiePar = form.get('verifie_par')
   const generePar = form.get('genere_par_ia') === 'true'
   const fichier = form.get('fichier')
+  const fichierType = form.get('fichier_type') || 'pdf' // 'pdf' | 'md' | 'txt'
+  const contenuExtraitBrut = form.get('contenu_extrait') // JSON déjà calculé côté admin
+  const statut = form.get('statut') === 'publie' ? 'publie' : 'brouillon'
 
   if (!titre || !slug || !fichier) {
-    return NextResponse.json({ error: 'Titre, slug et fichier PDF requis' }, { status: 400 })
+    return NextResponse.json({ error: 'Titre, slug et fichier requis' }, { status: 400 })
   }
 
-  const cheminFichier = `${slug}-${Date.now()}.pdf`
+  const extensions = { pdf: 'pdf', md: 'md', txt: 'txt' }
+  const typesContenu = { pdf: 'application/pdf', md: 'text/markdown', txt: 'text/plain' }
+  const extension = extensions[fichierType] || 'pdf'
+
+  const cheminFichier = `${slug}-${Date.now()}.${extension}`
   const bytes = new Uint8Array(await fichier.arrayBuffer())
 
   const { error: erreurUpload } = await admin.storage.from('livres').upload(cheminFichier, bytes, {
-    contentType: 'application/pdf',
+    contentType: typesContenu[fichierType] || 'application/pdf',
   })
   if (erreurUpload) return NextResponse.json({ error: erreurUpload.message }, { status: 400 })
 
   const { data: urlPublique } = admin.storage.from('livres').getPublicUrl(cheminFichier)
 
+  let contenuExtrait = null
+  if (contenuExtraitBrut) {
+    try { contenuExtrait = JSON.parse(contenuExtraitBrut) } catch { contenuExtrait = null }
+  }
+
   const { error: erreurInsert } = await admin.from('livres').insert({
     titre, slug, auteur, description, genre,
     fichier_url: urlPublique.publicUrl,
+    fichier_type: fichierType,
     genere_par_ia: generePar,
     verifie_par: verifiePar || null,
+    statut,
+    contenu_extrait: contenuExtrait,
+    contenu_extrait_le: contenuExtrait ? new Date().toISOString() : null,
   })
   if (erreurInsert) return NextResponse.json({ error: erreurInsert.message }, { status: 400 })
 
@@ -68,6 +96,20 @@ export async function PATCH(request) {
     // Force une nouvelle extraction du texte au prochain chargement (ex. après une
     // amélioration du moteur d'extraction) au lieu de garder l'ancien résultat en cache.
     const { error } = await admin.from('livres').update({ contenu_extrait: null, contenu_extrait_le: null }).eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.type === 'statut') {
+    const { error } = await admin.from('livres').update({ statut: body.statut === 'publie' ? 'publie' : 'brouillon' }).eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (body.type === 'editer_contenu') {
+    // Sauvegarde une correction manuelle du contenu déjà extrait (ex. un titre mal détecté,
+    // une phrase mal recollée entre deux pages). body.contenu est déjà au format {sections, tableMatieres}.
+    const { error } = await admin.from('livres').update({ contenu_extrait: body.contenu }).eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
   }
