@@ -142,21 +142,64 @@ export default function AdminPage() {
     }
   }
 
-  // --- Import .md ---
-  function choisirFichier(e) {
+  // --- Import .md / .pdf / .epub / .docx ---
+  const [importEnCours, setImportEnCours] = useState(false)
+
+  function finaliserImport(resultat) {
+    setImportant(resultat)
+    setPlanifierImport(false)
+    const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    setPlanifDepart(maintenant.toISOString().slice(0, 16))
+    setPlanifIntervalle(3)
+  }
+
+  async function choisirFichier(e) {
     const fichier = e.target.files?.[0]
-    if (!fichier) return
-    const lecteur = new FileReader()
-    lecteur.onload = (evt) => {
-      const resultat = parserMarkdownRoman(evt.target.result)
-      setImportant(resultat)
-      setPlanifierImport(false)
-      const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-      setPlanifDepart(maintenant.toISOString().slice(0, 16))
-      setPlanifIntervalle(3)
-    }
-    lecteur.readAsText(fichier)
     e.target.value = ''
+    if (!fichier) return
+    const ext = fichier.name.split('.').pop().toLowerCase()
+
+    if (ext === 'md') {
+      const lecteur = new FileReader()
+      lecteur.onload = (evt) => finaliserImport(parserMarkdownRoman(evt.target.result))
+      lecteur.readAsText(fichier)
+      return
+    }
+
+    setImportEnCours(true)
+    setMessage('')
+    try {
+      let contenu
+      if (ext === 'pdf') {
+        const { extrairePdfDepuisUrl } = await import('@/lib/extractionPdf')
+        const bytes = new Uint8Array(await fichier.arrayBuffer())
+        contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+      } else if (ext === 'epub') {
+        const { extraireEpub } = await import('@/lib/extractionEpub')
+        contenu = await extraireEpub(await fichier.arrayBuffer())
+      } else if (ext === 'docx') {
+        const { extraireDocx } = await import('@/lib/extractionDocx')
+        contenu = await extraireDocx(await fichier.arrayBuffer())
+      } else {
+        setMessage('Format non pris en charge. Utilise .md, .pdf, .epub ou .docx.')
+        return
+      }
+
+      const { paragraphesVersMarkdown } = await import('@/lib/paragraphesVersMarkdown')
+      const markdown = paragraphesVersMarkdown(contenu.paragraphes)
+      const resultat = parserMarkdownRoman(markdown)
+
+      if (!resultat.chapitres || resultat.chapitres.length <= 1) {
+        setMessage(
+          "Un seul chapitre détecté — si le fichier en contient plusieurs, vérifie que les titres de chapitre suivent bien un format reconnu (ex. \"Chapitre 4 : Titre\")."
+        )
+      }
+      finaliserImport(resultat)
+    } catch (err) {
+      setMessage(`Erreur d'import : ${err?.message || err}`)
+    } finally {
+      setImportEnCours(false)
+    }
   }
 
   // Étale la sortie des chapitres à partir de `depart`, un chapitre tous les `intervalleJours` jours
@@ -273,10 +316,16 @@ export default function AdminPage() {
           onClick={() => inputFichierRef.current?.click()}
           className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors"
         >
-          Importer .md
+          {importEnCours ? 'Import en cours…' : 'Importer un roman'}
         </button>
       </div>
-      <input ref={inputFichierRef} type="file" accept=".md,text/markdown" onChange={choisirFichier} className="hidden" />
+      <input
+        ref={inputFichierRef}
+        type="file"
+        accept=".md,.pdf,.epub,.docx,text/markdown,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        onChange={choisirFichier}
+        className="hidden"
+      />
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
         {modeChapitreSeul
           ? `Ajout rapide à « ${form.titre} » — les infos du roman restent inchangées.`

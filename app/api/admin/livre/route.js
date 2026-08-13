@@ -43,7 +43,7 @@ export async function POST(request) {
   const verifiePar = form.get('verifie_par')
   const generePar = form.get('genere_par_ia') === 'true'
   const fichier = form.get('fichier')
-  const fichierType = form.get('fichier_type') || 'pdf' // 'pdf' | 'md' | 'txt'
+  const fichierType = form.get('fichier_type') || 'pdf' // 'pdf' | 'md' | 'txt' | 'epub' | 'docx'
   const contenuExtraitBrut = form.get('contenu_extrait') // JSON déjà calculé côté admin
   const statut = form.get('statut') === 'publie' ? 'publie' : 'brouillon'
 
@@ -51,8 +51,14 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Titre, slug et fichier requis' }, { status: 400 })
   }
 
-  const extensions = { pdf: 'pdf', md: 'md', txt: 'txt' }
-  const typesContenu = { pdf: 'application/pdf', md: 'text/markdown', txt: 'text/plain' }
+  const extensions = { pdf: 'pdf', md: 'md', txt: 'txt', epub: 'epub', docx: 'docx' }
+  const typesContenu = {
+    pdf: 'application/pdf',
+    md: 'text/markdown',
+    txt: 'text/plain',
+    epub: 'application/epub+zip',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }
   const extension = extensions[fichierType] || 'pdf'
 
   const cheminFichier = `${slug}-${Date.now()}.${extension}`

@@ -3,11 +3,15 @@
 import { useEffect, useState } from 'react'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
+import { extraireDocx } from '@/lib/extractionDocx'
+import { extraireEpub } from '@/lib/extractionEpub'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
   if (ext === 'md') return 'md'
   if (ext === 'txt') return 'txt'
+  if (ext === 'epub') return 'epub'
+  if (ext === 'docx') return 'docx'
   return 'pdf'
 }
 
@@ -67,6 +71,12 @@ export default function AdminLivresPage() {
           (nom, dataUrl) => televerserImageAdmin(form.slug, nom, dataUrl),
           (p) => setProgression(p)
         )
+      } else if (type === 'epub') {
+        const bytes = await fichier.arrayBuffer()
+        contenu = await extraireEpub(bytes, (p) => setProgression(p))
+      } else if (type === 'docx') {
+        const bytes = await fichier.arrayBuffer()
+        contenu = await extraireDocx(bytes)
       } else {
         const texte = await fichier.text()
         contenu = extraireTexteBrut(texte)
@@ -167,7 +177,7 @@ export default function AdminLivresPage() {
             Fichier (PDF, .md ou .txt)
           </label>
           <input
-            type="file" accept=".pdf,.md,.txt,application/pdf,text/markdown,text/plain"
+            type="file" accept=".pdf,.md,.txt,.epub,.docx,application/pdf,text/markdown,text/plain,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={(e) => { setFichier(e.target.files?.[0] || null); setApercu(null) }}
             className="w-full text-papier text-sm"
           />
