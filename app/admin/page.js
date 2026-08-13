@@ -487,7 +487,7 @@ export default function AdminPage() {
 
       <div className="space-y-8">
         {romans?.map((roman) => {
-          const plie = romansPlies.has(roman.id)
+          const plie = !romansPlies.has(roman.id)
           return (
           <div key={roman.id} className="border border-ligne rounded-lg p-5">
             <div className="flex items-start justify-between gap-3 mb-1">
