@@ -15,6 +15,20 @@ function InlineMarkdown({ texte }) {
   )
 }
 
+// Style par niveau de titre, du plus structurant (1 = Partie) au plus fin (6) : les niveaux 1
+// et 2 restent la grande typo display centrée (rupture de page), les sous-titres (3-4) une typo
+// display plus modeste alignée à gauche, et les plus profonds (5-6) une étiquette mono
+// majuscule — cohérent avec le traitement des métadonnées ailleurs dans l'app (cf. design
+// system : font-mono uppercase tracking-widest).
+const STYLES_TITRE = {
+  1: 'font-display text-[1.85rem] text-papier text-center pt-10 pb-2 tracking-wide',
+  2: 'font-display text-2xl text-papier text-center pt-6 pb-1 tracking-wide',
+  3: 'font-display text-xl text-papier/90 pt-5 pb-1 tracking-wide',
+  4: 'font-display text-lg text-papier/80 font-medium pt-4 pb-1',
+  5: 'font-mono text-xs uppercase tracking-widest text-or/80 pt-4 pb-1',
+  6: 'font-mono text-[0.7rem] uppercase tracking-widest text-papier/45 pt-3 pb-1',
+}
+
 // Découpe le texte brut en paragraphes et applique une mise en forme littéraire cohérente,
 // sans jamais dépendre des espaces tapés à la main par l'auteur.
 // Une ligne de dialogue (qui commence par un tiret) démarre toujours un nouveau paragraphe,
@@ -34,6 +48,16 @@ function decouperEnParagraphes(texte) {
       const contenu = lignes.map((l) => l.replace(/^>\s?/, '')).join(' ')
       paragraphes.push('§CITATION§' + contenu)
       continue
+    }
+
+    // Sous-titre Markdown ("#" à "######"), produit par lib/paragraphesVersMarkdown.js à partir
+    // d'un titre détecté à l'extraction, ou tapé à la main dans le contenu d'un chapitre.
+    if (lignes.length === 1) {
+      const mTitre = lignes[0].match(/^(#{1,6})\s+(.+)$/)
+      if (mTitre) {
+        paragraphes.push(`§TITRE${mTitre[1].length}§${mTitre[2].trim()}`)
+        continue
+      }
     }
 
     let courant = ''
@@ -72,10 +96,15 @@ export default function CorpsChapitre({ texte }) {
           )
         }
 
-        if (p.startsWith('§TITRE§')) {
+        // §TITRE1§ à §TITRE6§ (cf. decouperEnParagraphes et components/LecteurPDF.js). Le
+        // marqueur historique sans chiffre ("§TITRE§") est encore accepté par sécurité et
+        // traité comme un niveau 2 (Chapitre), son usage d'origine.
+        const mTitre = p.match(/^§TITRE(\d)?§/)
+        if (mTitre) {
+          const niveau = mTitre[1] ? Number(mTitre[1]) : 2
           return (
-            <p key={i} id={`p-${i}`} className="font-display text-2xl text-papier text-center pt-6 pb-1 tracking-wide">
-              <InlineMarkdown texte={p.slice('§TITRE§'.length)} />
+            <p key={i} id={`p-${i}`} className={STYLES_TITRE[niveau] || STYLES_TITRE[2]}>
+              <InlineMarkdown texte={p.slice(mTitre[0].length)} />
             </p>
           )
         }

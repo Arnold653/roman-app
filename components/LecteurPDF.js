@@ -123,7 +123,7 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
       if (p.type === 'image') return `§IMAGE§${p.url}`
       if (p.type === 'tableau') return `§TABLEAU§${JSON.stringify(p.lignes)}`
       if (p.citation) return `§CITATION§${p.texte}`
-      return p.titre ? `§TITRE§${p.texte}` : p.texte
+      return p.titre ? `§TITRE${p.niveau || 2}§${p.texte}` : p.texte
     })
     .join('\n\n')
 
@@ -155,7 +155,11 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
                           ? 'text-papier/85 text-sm font-semibold uppercase tracking-wide'
                           : t.niveau === 2
                           ? 'text-papier/70 text-sm'
-                          : 'text-papier/40 text-xs italic'
+                          : t.niveau === 3
+                          ? 'text-papier/50 text-xs italic'
+                          : t.niveau === 4
+                          ? 'text-papier/40 text-xs italic'
+                          : 'text-papier/35 text-[0.7rem] font-mono uppercase tracking-wide'
                       }`}
                     >
                       {t.texte}
