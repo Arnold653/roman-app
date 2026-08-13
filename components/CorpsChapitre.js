@@ -25,6 +25,17 @@ function decouperEnParagraphes(texte) {
 
   for (const bloc of blocs) {
     const lignes = bloc.split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lignes.length === 0) continue
+
+    // Bloc de citation : toutes les lignes du bloc commencent par ">" (convention Markdown,
+    // produite par lib/paragraphesVersMarkdown.js à partir d'une citation détectée à
+    // l'extraction, ou tapée à la main dans le contenu d'un chapitre).
+    if (lignes.every((l) => /^>\s?/.test(l))) {
+      const contenu = lignes.map((l) => l.replace(/^>\s?/, '')).join(' ')
+      paragraphes.push('§CITATION§' + contenu)
+      continue
+    }
+
     let courant = ''
 
     for (const ligne of lignes) {
@@ -66,6 +77,18 @@ export default function CorpsChapitre({ texte }) {
             <p key={i} id={`p-${i}`} className="font-display text-2xl text-papier text-center pt-6 pb-1 tracking-wide">
               <InlineMarkdown texte={p.slice('§TITRE§'.length)} />
             </p>
+          )
+        }
+
+        if (p.startsWith('§CITATION§')) {
+          return (
+            <blockquote
+              key={i}
+              id={`p-${i}`}
+              className="my-2 py-1 pl-5 border-l-2 border-or/40 font-display italic text-papier/65 text-[1.02rem] leading-[1.75]"
+            >
+              <InlineMarkdown texte={p.slice('§CITATION§'.length)} />
+            </blockquote>
           )
         }
 

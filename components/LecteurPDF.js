@@ -122,6 +122,7 @@ export default function LecteurPDF({ url, slug, livreId, contenuInitial, section
     .map((p) => {
       if (p.type === 'image') return `§IMAGE§${p.url}`
       if (p.type === 'tableau') return `§TABLEAU§${JSON.stringify(p.lignes)}`
+      if (p.citation) return `§CITATION§${p.texte}`
       return p.titre ? `§TITRE§${p.texte}` : p.texte
     })
     .join('\n\n')
