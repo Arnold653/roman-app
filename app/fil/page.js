@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import FilActivite from '@/components/FilActivite'
 
 export default async function FilPage() {
   const supabase = createClient()
@@ -20,12 +21,12 @@ export default async function FilPage() {
   const [{ data: commentaires }, { data: likes }, { data: premieres }] = await Promise.all([
     supabase
       .from('commentaires')
-      .select('id, contenu, created_at, user_id, profiles(pseudo, avatar_url), chapitres(numero, romans(titre, slug))')
+      .select('id, contenu, created_at, user_id, profiles(pseudo, avatar_url), chapitres(id, numero, romans(titre, slug))')
       .order('created_at', { ascending: false })
       .limit(40),
     supabase
       .from('likes')
-      .select('created_at, user_id, profiles(pseudo, avatar_url), chapitres(numero, romans(titre, slug))')
+      .select('created_at, user_id, profiles(pseudo, avatar_url), chapitres(id, numero, romans(titre, slug))')
       .order('created_at', { ascending: false })
       .limit(40),
     supabase
@@ -53,6 +54,7 @@ export default async function FilPage() {
       type: 'premiere',
       date: p.publie_le,
       user_id: null,
+      chapitreId: p.id,
       roman: p.romans?.titre,
       slug: p.romans?.slug,
       numero: p.numero,
@@ -62,6 +64,7 @@ export default async function FilPage() {
       type: 'commentaire',
       date: c.created_at,
       user_id: c.user_id,
+      chapitreId: c.chapitres?.id ?? null,
       profil: c.profiles,
       roman: c.chapitres?.romans?.titre,
       slug: c.chapitres?.romans?.slug,
@@ -72,6 +75,7 @@ export default async function FilPage() {
       type: 'like',
       date: l.created_at,
       user_id: l.user_id,
+      chapitreId: l.chapitres?.id ?? null,
       profil: l.profiles,
       roman: l.chapitres?.romans?.titre,
       slug: l.chapitres?.romans?.slug,
@@ -81,6 +85,19 @@ export default async function FilPage() {
     .map((item) => ({ ...item, score: score(item) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 20)
+    .map((item, i) => ({ ...item, id: i }))
+
+  const chapitreIdsPresents = [...new Set(activite.map((a) => a.chapitreId).filter(Boolean))]
+
+  let mesLikesInitiaux = []
+  if (chapitreIdsPresents.length > 0) {
+    const { data: mesLikes } = await supabase
+      .from('likes')
+      .select('chapitre_id')
+      .eq('user_id', user.id)
+      .in('chapitre_id', chapitreIdsPresents)
+    mesLikesInitiaux = (mesLikes ?? []).map((l) => l.chapitre_id)
+  }
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
@@ -90,51 +107,12 @@ export default async function FilPage() {
         Priorité aux lecteurs que tu suis, puis à l'activité récente.
       </p>
 
-      <ul className="divide-y divide-ligne">
-        {activite.map((a, i) =>
-          a.type === 'premiere' ? (
-            <li key={i} className="py-4 flex gap-3 items-start">
-              <div className="w-9 h-9 rounded-full bg-or/15 border border-or/40 flex items-center justify-center shrink-0">
-                <span className="text-or text-sm">✨</span>
-              </div>
-              <div className="min-w-0 text-sm">
-                <span className="text-or font-mono text-[0.65rem] uppercase tracking-widest">C'est sorti</span>
-                <p className="text-papier/70 mt-1">
-                  <a href={`/roman/${a.slug}?ch=${a.numero}`} className="text-papier hover:text-or transition-colors">
-                    « {a.roman} »
-                  </a>{' '}
-                  — chapitre {a.numero}{a.titreChapitre ? ` · ${a.titreChapitre}` : ''} vient de paraître.
-                </p>
-              </div>
-            </li>
-          ) : (
-          <li key={i} className="py-4 flex gap-3">
-            {a.profil?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={a.profil.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
-            ) : (
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-or to-[#0a1a2e] flex items-center justify-center shrink-0">
-                <span className="font-display text-sm text-papier">{a.profil?.pseudo?.charAt(0).toUpperCase()}</span>
-              </div>
-            )}
-            <div className="min-w-0 text-sm">
-              <a href={`/profil/${a.profil?.pseudo ?? ''}`} className="text-papier font-mono text-xs uppercase tracking-wide hover:text-or transition-colors">
-                {a.profil?.pseudo ?? 'Lecteur'}
-              </a>
-              {idsSuivis.has(a.user_id) && <span className="text-or text-[0.65rem] font-mono ml-2">· suivi</span>}
-              <span className="text-papier/35"> {a.type === 'like' ? 'a aimé' : 'a réagi à'} </span>
-              <a href={`/roman/${a.slug}?ch=${a.numero}`} className="text-papier/60 hover:text-or transition-colors">
-                « {a.roman} », ch. {a.numero}
-              </a>
-              {a.type === 'commentaire' && a.contenu && <p className="text-papier/70 mt-1 leading-relaxed">{a.contenu}</p>}
-            </div>
-          </li>
-          )
-        )}
-        {activite.length === 0 && (
-          <p className="text-papier/30 text-sm font-mono py-6">Rien pour l'instant.</p>
-        )}
-      </ul>
+      <FilActivite
+        activite={activite}
+        idsSuivis={[...idsSuivis]}
+        mesLikesInitiaux={mesLikesInitiaux}
+        userId={user.id}
+      />
     </div>
   )
 }
