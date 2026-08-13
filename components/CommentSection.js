@@ -77,7 +77,7 @@ export default function CommentSection({ chapitreId }) {
           </li>
         ))}
         {commentaires.length === 0 && (
-          <p className="text-papier/30 text-sm font-mono">Sois le premier à réagir.</p>
+          <p className="text-papier/30 text-sm font-mono">Aucune réaction pour l'instant — lance la conversation.</p>
         )}
       </ul>
     </div>

@@ -195,7 +195,7 @@ export default async function CommunautePage() {
           </li>
         ))}
         {derniersCommentaires.length === 0 && (
-          <p className="text-papier/30 text-sm font-mono py-6">Rien pour l'instant — sois le premier à réagir à un chapitre.</p>
+          <p className="text-papier/30 text-sm font-mono py-6">Rien pour l'instant — personne n'a encore réagi à un chapitre.</p>
         )}
       </ul>
 

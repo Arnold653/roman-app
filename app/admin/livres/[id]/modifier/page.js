@@ -166,7 +166,7 @@ export default function ModifierLivrePage({ params }) {
                     <option value={6}>Niveau 6 — Sous-titre</option>
                   </select>
                 )}
-                <button onClick={() => supprimerBloc(i)} className="text-papier/30 hover:text-grenat text-xs font-mono ml-auto">Supprimer</button>
+                <button onClick={() => supprimerBloc(i)} className="text-papier/30 hover:text-grenat text-xs font-mono ml-auto">Suppr.</button>
               </div>
             </div>
           )
