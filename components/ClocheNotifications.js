@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ActiverPush from '@/components/ActiverPush'
 
 export default function ClocheNotifications({ connecte }) {
   const [ouvert, setOuvert] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [nonLues, setNonLues] = useState(0)
+  const conteneurRef = useRef(null)
 
   async function charger() {
     const res = await fetch('/api/notifications')
@@ -24,6 +25,19 @@ export default function ClocheNotifications({ connecte }) {
     return () => clearInterval(intervalle)
   }, [connecte])
 
+  useEffect(() => {
+    if (!ouvert) return
+    function surClicExterieur(e) {
+      if (conteneurRef.current && !conteneurRef.current.contains(e.target)) setOuvert(false)
+    }
+    document.addEventListener('mousedown', surClicExterieur)
+    document.addEventListener('touchstart', surClicExterieur)
+    return () => {
+      document.removeEventListener('mousedown', surClicExterieur)
+      document.removeEventListener('touchstart', surClicExterieur)
+    }
+  }, [ouvert])
+
   async function ouvrir() {
     setOuvert((o) => !o)
     if (!ouvert && nonLues > 0) {
@@ -35,7 +49,7 @@ export default function ClocheNotifications({ connecte }) {
   if (!connecte) return null
 
   return (
-    <div className="relative">
+    <div className="relative" ref={conteneurRef}>
       <button onClick={ouvrir} aria-label="Notifications" className="relative p-1.5 text-papier/70 hover:text-or transition-colors">
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
           <path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 12 6 8Z" strokeLinecap="round" strokeLinejoin="round" />

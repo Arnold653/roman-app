@@ -52,19 +52,6 @@ const ATOUTS = [
 export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
   return (
     <div className="min-h-screen">
-      {/* --- Nav --- */}
-      <header className="px-6 py-5 flex items-center justify-between max-w-6xl mx-auto">
-        <span className="flex items-center gap-2 font-display text-xl text-papier">
-          <span className="text-or">💧</span> Encre
-        </span>
-        <a
-          href="/login"
-          className="font-mono text-xs uppercase tracking-widest text-papier/60 hover:text-or transition-colors border border-ligne hover:border-or/40 rounded-full px-4 py-2"
-        >
-          Se connecter
-        </a>
-      </header>
-
       {/* --- Hero --- */}
       <section className="px-6 pt-10 pb-16 max-w-6xl mx-auto">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-or mb-5">
