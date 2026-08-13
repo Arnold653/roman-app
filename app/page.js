@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import RangStories from '@/components/RangStories'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
+import LandingPage from '@/components/LandingPage'
 import { degradeDe } from '@/lib/couvertures'
 
 
@@ -41,11 +42,44 @@ function CouvertureLivre({ titre }) {
 
 export default async function HomePage() {
   const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: romans }, { data: livres }, { data: { user } }] = await Promise.all([
+  // --- Visiteur non connecté : page marketing dédiée, pas le tableau de bord ---
+  if (!user) {
+    const [{ data: romansVitrine }, { data: livresVitrine }, { data: chapitreProche }, { count: nbLecteurs }] = await Promise.all([
+      supabase.from('romans').select('id, titre, slug, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(5),
+      supabase.from('livres').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(3),
+      supabase
+        .from('chapitres')
+        .select('numero, publie_le, romans!inner(titre, statut_visibilite)')
+        .eq('notifie', false)
+        .gt('publie_le', new Date().toISOString())
+        .eq('romans.statut_visibilite', 'publie')
+        .order('publie_le', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    ])
+
+    const vitrine = [
+      ...(romansVitrine || []).map((r) => ({ ...r, type: 'roman' })),
+      ...(livresVitrine || []).map((l) => ({ ...l, type: 'livre' })),
+    ].slice(0, 6)
+
+    const prochaineSortie = chapitreProche
+      ? {
+          roman: chapitreProche.romans?.titre,
+          numero: chapitreProche.numero,
+          dansMs: new Date(chapitreProche.publie_le).getTime() - Date.now(),
+        }
+      : null
+
+    return <LandingPage prochaineSortie={prochaineSortie} vitrine={vitrine} nbLecteurs={nbLecteurs || 0} />
+  }
+
+  const [{ data: romans }, { data: livres }] = await Promise.all([
     supabase.from('romans').select('id, titre, slug, resume, genre, couverture_url, statut').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }),
     supabase.from('livres').select('id, titre, slug, auteur, genre, description').eq('statut', 'publie').order('created_at', { ascending: false }),
-    supabase.auth.getUser(),
   ])
 
   // "Reprendre" : mélange romans et livres selon la dernière position de lecture réelle de
