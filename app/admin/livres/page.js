@@ -40,6 +40,16 @@ export default function AdminLivresPage() {
   })
   const [fichier, setFichier] = useState(null)
   const [apercu, setApercu] = useState(null) // { contenu, sections } prêt à être envoyé
+  const [livresPlies, setLivresPlies] = useState(new Set())
+
+  function basculerPliLivre(id) {
+    setLivresPlies((s) => {
+      const suivant = new Set(s)
+      if (suivant.has(id)) suivant.delete(id)
+      else suivant.add(id)
+      return suivant
+    })
+  }
 
   useEffect(() => { charger() }, [])
 
@@ -231,20 +241,49 @@ export default function AdminLivresPage() {
 
       <p className="text-or text-xs font-mono uppercase tracking-widest mb-6">Livres</p>
       <div className="space-y-2">
-        {livres?.map((l) => (
+        {livres?.map((l) => {
+          const plie = !livresPlies.has(l.id) // déplié par défaut, comme avant
+          const sections = l.contenu_extrait?.sections || []
+          return (
           <div key={l.id} className="bg-encreClair rounded-md px-4 py-3">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-papier/70">{l.titre}</span>
+              <button
+                onClick={() => basculerPliLivre(l.id)}
+                className="flex items-center gap-2 text-left min-w-0"
+                disabled={sections.length === 0}
+              >
+                {sections.length > 0 && (
+                  <span className={`text-papier/30 text-xs transition-transform shrink-0 ${plie ? '-rotate-90' : ''}`}>▼</span>
+                )}
+                <span className="text-sm text-papier/70 truncate">{l.titre}</span>
+              </button>
               <button
                 onClick={() => basculerStatut(l)}
-                className={`text-[0.65rem] font-mono uppercase tracking-wide rounded-full px-2.5 py-1 border ${
+                className={`text-[0.65rem] font-mono uppercase tracking-wide rounded-full px-2.5 py-1 border shrink-0 ${
                   l.statut === 'publie' ? 'border-or/40 text-or' : 'border-papier/20 text-papier/40'
                 }`}
               >
                 {l.statut === 'publie' ? 'Publié' : 'Brouillon'}
               </button>
             </div>
+
+            {!plie && sections.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
+                {sections.map((s, i) => (
+                  <span key={i} className="font-mono text-[0.65rem] text-papier/50 border border-ligne rounded-full px-2 py-1">{s.pilLabel}</span>
+                ))}
+              </div>
+            )}
+
             <div className="flex items-center gap-3 mt-2">
+              <a
+                href={`/livres/${l.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-mono uppercase text-papier/40 hover:text-or transition-colors"
+              >
+                Aperçu ↗
+              </a>
               <a href={`/admin/livres/${l.id}/modifier`} className="text-xs font-mono uppercase text-papier/40 hover:text-or transition-colors">Modifier le texte</a>
               <button
                 onClick={() => viderCache(l)}
@@ -256,7 +295,8 @@ export default function AdminLivresPage() {
               <button onClick={() => supprimer(l)} className="text-xs font-mono uppercase text-papier/40 hover:text-grenat transition-colors">Suppr.</button>
             </div>
           </div>
-        ))}
+          )
+        })}
         {livres?.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun livre pour le moment.</p>}
       </div>
     </div>

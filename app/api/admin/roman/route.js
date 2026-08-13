@@ -70,7 +70,10 @@ export async function PATCH(request) {
   if (body.type === 'roman') {
     const { error } = await admin
       .from('romans')
-      .update({ titre: body.titre, resume: body.resume, genre: body.genre })
+      .update({
+        titre: body.titre, resume: body.resume, genre: body.genre,
+        genere_par_ia: body.genere_par_ia ?? true, verifie_par: body.verifie_par || null,
+      })
       .eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   } else if (body.type === 'chapitre') {
@@ -149,6 +152,8 @@ export async function POST(request) {
         resume: body.resume,
         genre: body.genre,
         niveau_theme: body.niveau_theme || 1,
+        genere_par_ia: body.genere_par_ia ?? true,
+        verifie_par: body.verifie_par || null,
       })
       .select()
       .single()

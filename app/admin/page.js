@@ -5,6 +5,7 @@ import { parserMarkdownRoman } from '@/lib/parseMd'
 
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
+  genere_par_ia: true, verifie_par: '',
   numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '',
 }
 
@@ -16,6 +17,7 @@ export default function AdminPage() {
   const [edition, setEdition] = useState(null) // { type: 'roman' | 'chapitre', id }
   const [modeChapitreSeul, setModeChapitreSeul] = useState(false) // ajout rapide à un roman existant
   const [important, setImportant] = useState(null) // aperçu d'un import .md en attente de confirmation
+  const [romansPlies, setRomansPlies] = useState(new Set())
   const [planifierImport, setPlanifierImport] = useState(false)
   const [planifDepart, setPlanifDepart] = useState('')
   const [planifIntervalle, setPlanifIntervalle] = useState(3)
@@ -37,6 +39,15 @@ export default function AdminPage() {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+  function basculerPli(id) {
+    setRomansPlies((s) => {
+      const suivant = new Set(s)
+      if (suivant.has(id)) suivant.delete(id)
+      else suivant.add(id)
+      return suivant
+    })
+  }
+
   function reinitialiser() {
     setForm(FORM_VIDE)
     setEdition(null)
@@ -47,7 +58,10 @@ export default function AdminPage() {
   function editerRoman(roman) {
     setModeChapitreSeul(false)
     setEdition({ type: 'roman', id: roman.id })
-    setForm({ ...FORM_VIDE, titre: roman.titre, slug: roman.slug, resume: roman.resume, genre: roman.genre })
+    setForm({
+      ...FORM_VIDE, titre: roman.titre, slug: roman.slug, resume: roman.resume, genre: roman.genre,
+      genere_par_ia: roman.genere_par_ia ?? true, verifie_par: roman.verifie_par || '',
+    })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -342,6 +356,16 @@ export default function AdminPage() {
             {champ("Slug (identifiant dans l'URL, ex: le-dernier-refuge)", 'slug')}
             {champ('Résumé court', 'resume', 'textarea')}
             {champ('Genre (libre : thriller, romance, aventure...)', 'genre')}
+
+            <label className="flex items-center gap-2 text-sm text-papier/70">
+              <input
+                type="checkbox"
+                checked={form.genere_par_ia}
+                onChange={(e) => update('genere_par_ia', e.target.checked)}
+              />
+              Généré avec l'aide de l'IA
+            </label>
+            {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
           </>
         )}
 
@@ -462,11 +486,28 @@ export default function AdminPage() {
       {romans?.length === 0 && <p className="text-papier/35 text-sm font-mono">Rien publié pour l'instant.</p>}
 
       <div className="space-y-8">
-        {romans?.map((roman) => (
+        {romans?.map((roman) => {
+          const plie = romansPlies.has(roman.id)
+          return (
           <div key={roman.id} className="border border-ligne rounded-lg p-5">
             <div className="flex items-start justify-between gap-3 mb-1">
-              <h3 className="font-display text-xl text-papier">{roman.titre}</h3>
+              <button
+                onClick={() => basculerPli(roman.id)}
+                className="flex items-center gap-2 text-left min-w-0"
+              >
+                <span className={`text-papier/30 text-xs transition-transform shrink-0 ${plie ? '-rotate-90' : ''}`}>▼</span>
+                <h3 className="font-display text-xl text-papier truncate">{roman.titre}</h3>
+                <span className="text-papier/30 text-xs font-mono shrink-0">({roman.chapitres.length})</span>
+              </button>
               <div className="flex items-center gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+                <a
+                  href={`/roman/${roman.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-papier/50 hover:text-or transition-colors"
+                >
+                  Aperçu ↗
+                </a>
                 <button
                   onClick={() => basculerStatutRoman(roman)}
                   className={`rounded-full px-2.5 py-1 border ${
@@ -481,37 +522,50 @@ export default function AdminPage() {
             </div>
             <p className="text-papier/35 text-xs font-mono mb-4">/{roman.slug} — {roman.genre}</p>
 
-            <button
-              onClick={() => nouveauChapitrePour(roman)}
-              className="w-full text-sm border border-dashed border-or/40 text-or rounded-md py-2.5 mb-4 hover:bg-or/5 transition-colors"
-            >
-              + Ajouter un chapitre
-            </button>
+            {!plie && (
+              <>
+                <button
+                  onClick={() => nouveauChapitrePour(roman)}
+                  className="w-full text-sm border border-dashed border-or/40 text-or rounded-md py-2.5 mb-4 hover:bg-or/5 transition-colors"
+                >
+                  + Ajouter un chapitre
+                </button>
 
-            <div className="space-y-2">
-              {roman.chapitres.map((chapitre) => {
-                const programme = chapitre.publie_le && new Date(chapitre.publie_le) > new Date()
-                return (
-                  <div key={chapitre.id} className="flex items-center justify-between bg-encreClair rounded-md px-4 py-2.5">
-                    <span className="text-sm text-papier/70">
-                      Ch. {chapitre.numero}{chapitre.titre ? ` — ${chapitre.titre}` : ''}
-                      {programme && (
-                        <span className="ml-2 text-[0.65rem] font-mono text-or border border-or/30 rounded-full px-2 py-0.5">
-                          Programmé
+                <div className="space-y-2">
+                  {roman.chapitres.map((chapitre) => {
+                    const programme = chapitre.publie_le && new Date(chapitre.publie_le) > new Date()
+                    return (
+                      <div key={chapitre.id} className="flex items-center justify-between bg-encreClair rounded-md px-4 py-2.5">
+                        <span className="text-sm text-papier/70">
+                          Ch. {chapitre.numero}{chapitre.titre ? ` — ${chapitre.titre}` : ''}
+                          {programme && (
+                            <span className="ml-2 text-[0.65rem] font-mono text-or border border-or/30 rounded-full px-2 py-0.5">
+                              Programmé
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    <div className="flex gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
-                      <button onClick={() => editerChapitre(roman, chapitre)} className="text-papier/40 hover:text-or transition-colors">Éditer</button>
-                      <button onClick={() => supprimerChapitre(roman, chapitre)} className="text-papier/40 hover:text-grenat transition-colors">Suppr.</button>
-                    </div>
-                  </div>
-                )
-              })}
-              {roman.chapitres.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun chapitre.</p>}
-            </div>
+                        <div className="flex gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+                          <a
+                            href={`/roman/${roman.slug}?ch=${chapitre.numero}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-papier/40 hover:text-or transition-colors"
+                          >
+                            Aperçu ↗
+                          </a>
+                          <button onClick={() => editerChapitre(roman, chapitre)} className="text-papier/40 hover:text-or transition-colors">Éditer</button>
+                          <button onClick={() => supprimerChapitre(roman, chapitre)} className="text-papier/40 hover:text-grenat transition-colors">Suppr.</button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {roman.chapitres.length === 0 && <p className="text-papier/30 text-xs font-mono">Aucun chapitre.</p>}
+                </div>
+              </>
+            )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
