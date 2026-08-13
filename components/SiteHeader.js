@@ -60,7 +60,7 @@ export default function SiteHeader() {
   const connecte = !statut.loading && !!statut.user
 
   const liensNav = [
-    { href: '/', label: 'Romans' },
+    { href: '/romans', label: 'Romans' },
     { href: '/livres', label: 'Livres' },
     ...(connecte ? [{ href: '/fil', label: 'Fil' }] : []),
     { href: '/communaute', label: 'Communauté' },

@@ -64,7 +64,7 @@ export default function RootLayout({ children }) {
               <div className="font-mono text-xs uppercase tracking-wide">
                 <p className="text-papier/30 mb-4">Explorer</p>
                 <ul className="space-y-3 text-papier/55">
-                  <li><a href="/" className="hover:text-or transition-colors">Romans</a></li>
+                  <li><a href="/romans" className="hover:text-or transition-colors">Romans</a></li>
                   <li><a href="/fil" className="hover:text-or transition-colors">Fil</a></li>
                   <li><a href="/communaute" className="hover:text-or transition-colors">Communauté</a></li>
                   <li><a href="/lecteurs" className="hover:text-or transition-colors">Découvrir</a></li>
