@@ -117,6 +117,23 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: true })
   }
 
+  if (body.type === 'monetisation') {
+    const modesValides = ['gratuit', 'pourboire', 'payant', 'bonus']
+    if (!modesValides.includes(body.mode_monetisation)) {
+      return NextResponse.json({ error: 'Mode invalide' }, { status: 400 })
+    }
+    const { error } = await admin
+      .from('contes_africains')
+      .update({
+        mode_monetisation: body.mode_monetisation,
+        prix_fcfa: Number(body.prix_fcfa) || 0,
+        bonus_contenu: body.bonus_contenu || null,
+      })
+      .eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
   return NextResponse.json({ error: 'Type inconnu' }, { status: 400 })
 }
 

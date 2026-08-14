@@ -7,7 +7,7 @@ import Script from 'next/script'
 // Paywall pour un chapitre ou un livre payant. Affiche le prix + un bouton qui ouvre le widget
 // KKiaPay ; au succès, confirme côté serveur puis rafraîchit la page pour révéler le contenu
 // (le contenu verrouillé n'est de toute façon jamais envoyé au navigateur avant déblocage).
-export default function BoutonDeblocage({ chapitreId, livreId, romanId, prixFcfa, publieLe, libelle }) {
+export default function BoutonDeblocage({ chapitreId, livreId, romanId, conteAfricainId, conteEnfantId, prixFcfa, publieLe, libelle }) {
   const router = useRouter()
   const [statut, setStatut] = useState('repos') // repos | ouverture | verification | erreur
   const [scriptPret, setScriptPret] = useState(false)
@@ -47,7 +47,7 @@ export default function BoutonDeblocage({ chapitreId, livreId, romanId, prixFcfa
       const res = await fetch('/api/paiement/creer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chapitreId, livreId, romanId }),
+        body: JSON.stringify({ chapitreId, livreId, romanId, conteAfricainId, conteEnfantId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'echec')
@@ -73,8 +73,8 @@ export default function BoutonDeblocage({ chapitreId, livreId, romanId, prixFcfa
       <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-3">Contenu verrouillé</p>
       <p className="text-papier/60 mb-2">
         {publieLe
-          ? `Débloquez ${libelle || (chapitreId ? 'ce chapitre' : romanId ? 'ce roman' : 'ce livre')} en avant-première pour continuer la lecture.`
-          : `Débloquez ${libelle || (chapitreId ? 'ce chapitre' : romanId ? 'ce roman' : 'ce livre')} pour y accéder.`}
+          ? `Débloquez ${libelle || (chapitreId ? 'ce chapitre' : romanId ? 'ce roman' : conteAfricainId ? 'ce conte' : conteEnfantId ? 'cette histoire' : 'ce livre')} en avant-première pour continuer la lecture.`
+          : `Débloquez ${libelle || (chapitreId ? 'ce chapitre' : romanId ? 'ce roman' : conteAfricainId ? 'ce conte' : conteEnfantId ? 'cette histoire' : 'ce livre')} pour y accéder.`}
       </p>
       {publieLe && (
         <p className="text-papier/35 text-xs mb-6">

@@ -2,8 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
-// Crée un déblocage "en_attente" pour un chapitre payant, un livre payant, un bonus de livre,
-// ou un pourboire libre — et renvoie tout ce dont le widget KKiaPay a besoin côté client.
+// Types de contenu "à fichier unique" partageant le même modèle de monétisation
+// (gratuit / pourboire / payant / bonus) : Livres, Contes Africains, Contes Enfants.
+// Ajouter un nouveau type ici suffit à l'activer partout dans cette route.
+const CIBLES_MONETISABLES = {
+  livreId: { table: 'livres', colonne: 'livre_id' },
+  conteAfricainId: { table: 'contes_africains', colonne: 'conte_africain_id' },
+  conteEnfantId: { table: 'contes_enfants', colonne: 'conte_enfant_id' },
+}
+
+// Crée un déblocage "en_attente" pour un chapitre payant, un roman (accès anticipé), un livre/conte
+// payant, un bonus (livre/conte), ou un pourboire libre — et renvoie tout ce dont le widget
+// KKiaPay a besoin côté client.
 export async function POST(request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -12,32 +22,36 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
   }
 
-  const { chapitreId, livreId, romanId, pourboire, montant } = await request.json()
+  const { chapitreId, livreId, romanId, conteAfricainId, conteEnfantId, pourboire, montant } = await request.json()
+  const cibles = { livreId, conteAfricainId, conteEnfantId }
 
-  const nbCibles = [chapitreId, livreId, romanId].filter(Boolean).length
+  const nbCibles = [chapitreId, livreId, romanId, conteAfricainId, conteEnfantId].filter(Boolean).length
   if (nbCibles !== 1) {
-    return NextResponse.json({ error: 'Un seul de chapitreId / livreId / romanId à la fois' }, { status: 400 })
+    return NextResponse.json({ error: 'Une seule cible à la fois' }, { status: 400 })
   }
 
   const admin = createAdminClient()
 
   // Pourboire libre : montant choisi par le lecteur, ne débloque rien, ne vérifie aucun prix en base.
+  // Disponible pour tout type "à fichier unique" (livre, conte africain, conte enfant).
   if (pourboire) {
-    if (!livreId) {
-      return NextResponse.json({ error: "Le pourboire est réservé aux livres" }, { status: 400 })
+    const [param, id] = Object.entries(cibles).find(([, v]) => v) || []
+    const config = param && CIBLES_MONETISABLES[param]
+    if (!config) {
+      return NextResponse.json({ error: 'Le pourboire est réservé aux livres et contes' }, { status: 400 })
     }
     const montantValide = Number.isInteger(montant) && montant >= 100 && montant <= 1000000
     if (!montantValide) {
       return NextResponse.json({ error: 'Montant invalide (minimum 100 FCFA)' }, { status: 400 })
     }
-    const { data: livre } = await admin.from('livres').select('id, mode_monetisation').eq('id', livreId).single()
-    if (!livre || livre.mode_monetisation !== 'pourboire') {
-      return NextResponse.json({ error: "Ce livre n'accepte pas les pourboires" }, { status: 400 })
+    const { data: cible } = await admin.from(config.table).select('id, mode_monetisation').eq('id', id).single()
+    if (!cible || cible.mode_monetisation !== 'pourboire') {
+      return NextResponse.json({ error: "Ce contenu n'accepte pas les pourboires" }, { status: 400 })
     }
 
     const { data: deblocage, error } = await admin
       .from('deblocages')
-      .insert({ user_id: user.id, livre_id: livreId, montant_fcfa: montant, statut: 'en_attente', type: 'pourboire' })
+      .insert({ user_id: user.id, [config.colonne]: id, montant_fcfa: montant, statut: 'en_attente', type: 'pourboire' })
       .select('id')
       .single()
 
@@ -92,29 +106,31 @@ export async function POST(request) {
     })
   }
 
-  const table = chapitreId ? 'chapitres' : 'livres'
-  const id = chapitreId || livreId
+  // Chapitre (prix fixe, toujours payant s'il a un prix) OU livre/conte (payant/bonus uniquement).
+  const paramLivreLike = Object.keys(CIBLES_MONETISABLES).find((p) => cibles[p])
+  const table = chapitreId ? 'chapitres' : CIBLES_MONETISABLES[paramLivreLike].table
+  const colonneCible = chapitreId ? 'chapitre_id' : CIBLES_MONETISABLES[paramLivreLike].colonne
+  const id = chapitreId || cibles[paramLivreLike]
 
-  const colonnes = livreId ? 'id, prix_fcfa, mode_monetisation' : 'id, prix_fcfa'
+  const colonnes = chapitreId ? 'id, prix_fcfa' : 'id, prix_fcfa, mode_monetisation'
   const { data: cible } = await admin.from(table).select(colonnes).eq('id', id).single()
 
   if (!cible) {
     return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
   }
-  if (livreId && !['payant', 'bonus'].includes(cible.mode_monetisation)) {
-    return NextResponse.json({ error: "Ce livre n'est pas payant" }, { status: 400 })
+  if (!chapitreId && !['payant', 'bonus'].includes(cible.mode_monetisation)) {
+    return NextResponse.json({ error: "Ce contenu n'est pas payant" }, { status: 400 })
   }
   if (!cible.prix_fcfa || cible.prix_fcfa <= 0) {
     return NextResponse.json({ error: "Ce contenu n'est pas payant" }, { status: 400 })
   }
 
   // Déjà débloqué ? On ne recrée pas de paiement (uniquement pour un vrai déblocage, pas un pourboire).
-  const champCible = chapitreId ? 'chapitre_id' : 'livre_id'
   const { data: dejaDebloque } = await admin
     .from('deblocages')
     .select('id')
     .eq('user_id', user.id)
-    .eq(champCible, id)
+    .eq(colonneCible, id)
     .eq('statut', 'reussi')
     .eq('type', 'deblocage')
     .maybeSingle()
@@ -127,8 +143,7 @@ export async function POST(request) {
     .from('deblocages')
     .insert({
       user_id: user.id,
-      chapitre_id: chapitreId || null,
-      livre_id: livreId || null,
+      [colonneCible]: id,
       montant_fcfa: cible.prix_fcfa,
       statut: 'en_attente',
       type: 'deblocage',
