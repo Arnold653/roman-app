@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import CatalogueRomans from '@/components/CatalogueRomans'
 
 export default async function RomansPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const estAdmin = user?.email === process.env.ADMIN_EMAIL
 
   const [{ data: romans }, { data: chapitres }, { data: likes }, { data: commentaires }] = await Promise.all([
     supabase
@@ -17,6 +19,20 @@ export default async function RomansPage() {
     supabase.from('likes').select('chapitre_id, chapitres!inner(roman_id)'),
     supabase.from('commentaires').select('chapitre_id, chapitres!inner(roman_id)'),
   ])
+
+  // Client admin : la policy RLS masque les chapitres pas encore sortis pour un lecteur normal —
+  // sans ça, aucun badge "Première à venir" ne s'affichait dans le catalogue. Métadonnées seules.
+  const admin = createAdminClient()
+  const { data: chapitresAVenir } = await admin
+    .from('chapitres')
+    .select('roman_id, publie_le')
+    .gt('publie_le', new Date().toISOString())
+    .order('publie_le', { ascending: true })
+
+  const prochaineParRoman = {}
+  for (const c of chapitresAVenir || []) {
+    if (!prochaineParRoman[c.roman_id]) prochaineParRoman[c.roman_id] = c.publie_le
+  }
 
   let progressionParRoman = {}
   if (user) {
@@ -56,6 +72,7 @@ export default async function RomansPage() {
     nouveau: dernierePubliParRoman[r.id] ? new Date(dernierePubliParRoman[r.id]).getTime() > septJours : false,
     dernierePublication: dernierePubliParRoman[r.id] || r.created_at,
     chapitreEnCours: progressionParRoman[r.id] || null,
+    prochainePremiere: prochaineParRoman[r.id] || null,
   }))
 
   return <CatalogueRomans romans={enrichis} />

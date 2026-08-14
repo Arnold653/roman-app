@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import RangStories from '@/components/RangStories'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 import LandingPage from '@/components/LandingPage'
@@ -11,10 +12,13 @@ export default async function HomePage() {
 
   // --- Visiteur non connecté : page marketing dédiée, pas le tableau de bord ---
   if (!user) {
+    const admin = createAdminClient()
     const [{ data: romansVitrine }, { data: livresVitrine }, { data: chapitreProche }, { count: nbLecteurs }] = await Promise.all([
       supabase.from('romans').select('id, titre, slug, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(5),
       supabase.from('livres').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(3),
-      supabase
+      // Client admin : la policy RLS masque les chapitres pas encore sortis à un visiteur normal,
+      // ce qui cassait ce compte à rebours. On ne sélectionne que des métadonnées, jamais `contenu`.
+      admin
         .from('chapitres')
         .select('numero, publie_le, romans!inner(titre, statut_visibilite)')
         .eq('notifie', false)
@@ -104,7 +108,10 @@ export default async function HomePage() {
   // Premières à venir, tous romans confondus — la plus proche par roman.
   // L'admin voit aussi les Premières de ses romans encore en brouillon (utile pour tester
   // avant publication) ; le grand public ne voit que celles des romans publiés.
-  let requetePremieres = supabase
+  // Client admin : la policy RLS masque les lignes dont publie_le est dans le futur pour un
+  // lecteur normal — sans ça cette section restait invisible pour tout le monde sauf l'admin.
+  const admin = createAdminClient()
+  let requetePremieres = admin
     .from('chapitres')
     .select('numero, titre, publie_le, roman_id, romans!inner(id, titre, slug, couverture_url, statut_visibilite)')
     .eq('notifie', false)

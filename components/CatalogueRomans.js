@@ -46,6 +46,11 @@ function CarteRoman({ roman, vedette = false }) {
                 🔒 En Première
               </span>
             )}
+            {roman.prochainePremiere && (
+              <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/40 rounded-full px-2.5 py-1 bg-black/10 backdrop-blur-sm">
+                Prochaine sortie {new Date(roman.prochainePremiere).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+              </span>
+            )}
           </div>
           <div>
             <div className="w-6 h-[1.5px] bg-or/70 mb-3" />
