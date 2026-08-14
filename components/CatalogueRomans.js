@@ -111,7 +111,6 @@ export default function CatalogueRomans({ romans }) {
   return (
     <div className="px-6 pt-16 pb-24 max-w-6xl mx-auto">
       <div className="lever max-w-2xl mb-10">
-        <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
         <h1 className="font-display text-4xl md:text-5xl text-papier mb-4 leading-tight">Romans</h1>
         <p className="text-papier/50 leading-relaxed">
           Des histoires publiées chapitre par chapitre, à lire ou à écouter au fil de leur sortie.

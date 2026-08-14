@@ -58,7 +58,6 @@ export default function MessagesPage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
-      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
       <h1 className="font-display text-4xl text-papier mb-10">Messages</h1>
 
       {conversations === null && <p className="text-papier/35 text-sm font-mono">Chargement...</p>}

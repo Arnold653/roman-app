@@ -121,7 +121,6 @@ export default async function LecteursPage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
-      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
       <h1 className="font-display text-4xl text-papier mb-3">Découvrir</h1>
       <p className="text-papier/50 mb-12 leading-relaxed">
         De nouvelles lectures, ce que la communauté préfère, d'autres lecteurs à suivre.

@@ -98,7 +98,6 @@ export default async function CommunautePage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
-      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
       <h1 className="font-display text-4xl text-papier mb-3">Communauté</h1>
       <p className="text-papier/50 mb-10 leading-relaxed">
         Ce que les lecteurs d'Encre lisent, aiment et commentent en ce moment.

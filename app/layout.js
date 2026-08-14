@@ -7,7 +7,7 @@ export const metadata = {
   title: 'Encre — lire, discuter, partager',
   description: 'Une nouvelle histoire chaque semaine, à lire et à discuter en communauté.',
   manifest: '/manifest.json',
-  icons: { icon: '/favicon.svg', apple: '/icon-192.png' },
+  icons: { icon: '/favicon.png', apple: '/apple-icon.png' },
 }
 
 export const viewport = {

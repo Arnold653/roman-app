@@ -92,7 +92,6 @@ export default function CatalogueLivres({ livres }) {
   return (
     <div className="px-6 pt-16 pb-24 max-w-6xl mx-auto">
       <div className="lever max-w-2xl mb-10">
-        <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
         <h1 className="font-display text-4xl md:text-5xl text-papier mb-4 leading-tight">Livres</h1>
         <p className="text-papier/50 leading-relaxed">
           Des ouvrages complets, à lire ou écouter en entier — à la différence des romans publiés chapitre par chapitre.

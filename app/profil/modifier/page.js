@@ -84,7 +84,6 @@ export default function ModifierProfilPage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-md mx-auto lever">
-      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
       <h1 className="font-display text-4xl text-papier mb-10">Modifier mon profil</h1>
 
       <div className="flex flex-col items-center mb-10">

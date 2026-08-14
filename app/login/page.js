@@ -47,7 +47,6 @@ export default function LoginPage() {
 
   return (
     <div className="px-6 pt-20 pb-24 max-w-sm mx-auto lever">
-      <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre</p>
       <h1 className="font-display text-4xl text-papier mb-8">
         {mode === 'connexion' ? 'Content de te revoir' : 'Rejoindre Encre'}
       </h1>
