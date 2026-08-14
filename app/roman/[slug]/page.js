@@ -51,7 +51,10 @@ export default async function RomanPage({ params, searchParams }) {
   const prixAccesAnticipeRoman = Math.round(totalPrixChapitres / 2)
 
   let romanDebloque = estAdmin
-  if (romanEnPremiere && prixAccesAnticipeRoman > 0 && !estAdmin) {
+  if (!estAdmin) {
+    // Vérifié en permanence (pas seulement pendant la fenêtre "Première") : une fois payé,
+    // l'accès à tout ce qui était déjà écrit au moment de l'achat reste acquis pour toujours,
+    // même après la sortie officielle du 1er chapitre.
     const { data: deblocageRoman } = await supabase
       .from('deblocages')
       .select('id')
@@ -84,8 +87,9 @@ export default async function RomanPage({ params, searchParams }) {
 
   // Chapitres accessibles pour ce lecteur : déjà sortis, ou programmés-mais-payants (le lecteur
   // peut alors voir la fiche du chapitre et payer). Un chapitre programmé gratuit reste invisible
-  // avant sa sortie. Si le roman entier a été débloqué en avance, tout est accessible d'un coup.
-  const chapitres = (romanDebloque && romanEnPremiere)
+  // avant sa sortie. Si le roman entier a été débloqué en accès anticipé, tout est accessible
+  // d'un coup, pour toujours — pas seulement pendant que le roman est encore "en Première".
+  const chapitres = romanDebloque
     ? (tousChapitres || [])
     : (tousChapitres || []).filter((c) => new Date(c.publie_le) <= new Date() || c.prix_fcfa > 0)
 
@@ -111,7 +115,8 @@ export default async function RomanPage({ params, searchParams }) {
   const chapitresDebloques = new Set((deblocagesReussis || []).map((d) => d.chapitre_id))
 
   // Prochaine "Première" à mettre en avant : le premier chapitre encore à venir que CE lecteur n'a
-  // pas déjà débloqué (sinon le compte à rebours restait bloqué sur un chapitre déjà payé/lu).
+  // pas déjà débloqué (chapitre par chapitre, ou via le roman entier — sinon le compte à rebours
+  // restait bloqué sur un chapitre déjà payé/accessible).
   const { data: chapitresFuturs } = await admin
     .from('chapitres')
     .select('id, numero, titre, publie_le')
@@ -120,7 +125,7 @@ export default async function RomanPage({ params, searchParams }) {
     .order('publie_le', { ascending: true })
   const prochaineParution = estAdmin
     ? chapitresFuturs?.[0]
-    : (chapitresFuturs || []).find((c) => !chapitresDebloques.has(c.id)) || null
+    : (chapitresFuturs || []).find((c) => !chapitresDebloques.has(c.id) && !romanDebloque) || null
 
   let numeroDemande = searchParams?.ch ? Number(searchParams.ch) : null
 
@@ -140,10 +145,10 @@ export default async function RomanPage({ params, searchParams }) {
   const suivant = index >= 0 && index < (chapitresComplets?.length ?? 0) - 1 ? chapitresComplets[index + 1] : null
 
   // Un chapitre n'est verrouillé que s'il est ENCORE programmé (pas encore sorti officiellement),
-  // payant, ET pas déjà débloqué par ce lecteur. Une fois sa date de sortie passée, il est gratuit
-  // pour tout le monde — même pour ceux qui n'ont jamais payé.
+  // payant, ET pas déjà débloqué par ce lecteur — individuellement, ou via l'accès anticipé au
+  // roman entier. Une fois sa date de sortie passée, il est gratuit pour tout le monde.
   const estEncoreProgramme = courant?.publie_le && new Date(courant.publie_le) > new Date()
-  const verrouille = !estAdmin && estEncoreProgramme && courant?.prix_fcfa > 0 && !chapitresDebloques.has(courant.id)
+  const verrouille = !estAdmin && !romanDebloque && estEncoreProgramme && courant?.prix_fcfa > 0 && !chapitresDebloques.has(courant.id)
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
@@ -173,7 +178,7 @@ export default async function RomanPage({ params, searchParams }) {
       {chapitresComplets && chapitresComplets.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-12">
           {chapitresComplets.map((c) => {
-            const cVerrouille = !estAdmin && new Date(c.publie_le) > new Date() && c.prix_fcfa > 0 && !chapitresDebloques.has(c.id)
+            const cVerrouille = !estAdmin && !romanDebloque && new Date(c.publie_le) > new Date() && c.prix_fcfa > 0 && !chapitresDebloques.has(c.id)
             return (
               <a
                 key={c.id}
