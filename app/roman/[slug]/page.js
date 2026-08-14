@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import BoutonDeblocage from '@/components/BoutonDeblocage'
 import CommentSection from '@/components/CommentSection'
 import CorpsChapitre from '@/components/CorpsChapitre'
 import BoutonLike from '@/components/BoutonLike'
@@ -39,7 +41,13 @@ export default async function RomanPage({ params, searchParams }) {
   const premier = chapitres?.[0]
 
   // Prochaine "Première" : le chapitre programmé le plus proche, pas encore sorti.
-  const { data: prochaineParution } = await supabase
+  // ⚠️ Depuis le correctif RLS (migration-fix-rls-visibilite.sql), la policy sur `chapitres`
+  // ne renvoie plus les lignes dont publie_le est dans le futur à un lecteur normal — ce qui
+  // cassait silencieusement ce compte à rebours pour tout le monde sauf l'admin. On passe donc
+  // par le client admin pour cet aperçu, mais en ne sélectionnant QUE les métadonnées (jamais
+  // `contenu`) : le compte à rebours doit rester visible, pas le texte du chapitre à venir.
+  const admin = createAdminClient()
+  const { data: prochaineParution } = await admin
     .from('chapitres')
     .select('numero, titre, publie_le')
     .eq('roman_id', roman.id)
@@ -64,6 +72,19 @@ export default async function RomanPage({ params, searchParams }) {
   const index = chapitres?.findIndex((c) => c.id === courant?.id) ?? -1
   const precedent = index > 0 ? chapitres[index - 1] : null
   const suivant = index >= 0 && index < (chapitres?.length ?? 0) - 1 ? chapitres[index + 1] : null
+
+  // Chapitre payant pas encore débloqué par ce lecteur (l'admin voit toujours tout).
+  let verrouille = false
+  if (courant?.prix_fcfa > 0 && !estAdmin) {
+    const { data: deblocage } = await supabase
+      .from('deblocages')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('chapitre_id', courant.id)
+      .eq('statut', 'reussi')
+      .maybeSingle()
+    verrouille = !deblocage
+  }
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
@@ -108,7 +129,7 @@ export default async function RomanPage({ params, searchParams }) {
 
       {courant ? (
         <article className="lever">
-          <SuiviLecture romanId={roman.id} numeroChapitre={courant.numero} />
+          {!verrouille && <SuiviLecture romanId={roman.id} numeroChapitre={courant.numero} />}
           <div className="filet-or mb-8" />
           <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-2">
             Chapitre {courant.numero}
@@ -116,20 +137,28 @@ export default async function RomanPage({ params, searchParams }) {
           {courant.titre && (
             <h2 className="font-display text-3xl text-papier mb-4">{courant.titre}</h2>
           )}
-          <div className={courant.titre ? 'mb-8' : 'mb-8 mt-2'}>
-            <LectureAudio texte={courant.contenu} titre={courant.titre} />
-          </div>
-          <CorpsChapitre texte={courant.contenu} />
+          {verrouille ? (
+            <BoutonDeblocage chapitreId={courant.id} prixFcfa={courant.prix_fcfa} />
+          ) : (
+            <>
+              <div className={courant.titre ? 'mb-8' : 'mb-8 mt-2'}>
+                <LectureAudio texte={courant.contenu} titre={courant.titre} />
+              </div>
+              <CorpsChapitre texte={courant.contenu} />
 
-          {courant.citation_fin && (
-            <p className="mt-12 font-display italic text-xl text-papier/60 border-l-2 border-or/50 pl-5">
-              {courant.citation_fin}
-            </p>
+              {courant.citation_fin && (
+                <p className="mt-12 font-display italic text-xl text-papier/60 border-l-2 border-or/50 pl-5">
+                  {courant.citation_fin}
+                </p>
+              )}
+            </>
           )}
 
-          <div className="mt-10">
-            <BoutonLike chapitreId={courant.id} />
-          </div>
+          {!verrouille && (
+            <div className="mt-10">
+              <BoutonLike chapitreId={courant.id} />
+            </div>
+          )}
 
           {(precedent || suivant) && (
             <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
@@ -146,7 +175,7 @@ export default async function RomanPage({ params, searchParams }) {
             </div>
           )}
 
-          <CommentSection chapitreId={courant.id} />
+          {!verrouille && <CommentSection chapitreId={courant.id} />}
 
           {prochaineParution && (
             <CompteAReboursPremiere
