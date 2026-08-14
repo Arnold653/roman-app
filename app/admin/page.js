@@ -6,7 +6,7 @@ import { parserMarkdownRoman } from '@/lib/parseMd'
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
   genere_par_ia: true, verifie_par: '',
-  numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '', prix_fcfa: 0,
+  numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '', prix_fcfa: 100,
 }
 
 export default function AdminPage() {
