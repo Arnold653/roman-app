@@ -17,7 +17,7 @@ export async function GET() {
   const admin = createAdminClient()
   const { data: romans, error } = await admin
     .from('romans')
-    .select('*, chapitres(id, numero, titre, contenu, citation_fin, publie_le)')
+    .select('*, chapitres(id, numero, titre, contenu, citation_fin, publie_le, prix_fcfa)')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -85,6 +85,7 @@ export async function PATCH(request) {
         contenu: body.contenu,
         citation_fin: body.citation_fin,
         publie_le: body.publie_le || new Date().toISOString(),
+        prix_fcfa: Number(body.prix_fcfa) || 0,
       })
       .eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -193,6 +194,7 @@ export async function POST(request) {
     citation_fin: body.citation_fin,
     publie_le: publieLe.toISOString(),
     notifie: estImmediat, // si programmé, la tâche planifiée notifiera au bon moment
+    prix_fcfa: Number(body.prix_fcfa) || 0,
   })
 
   if (chapitreError) {

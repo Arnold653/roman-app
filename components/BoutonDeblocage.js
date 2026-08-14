@@ -7,7 +7,7 @@ import Script from 'next/script'
 // Paywall pour un chapitre ou un livre payant. Affiche le prix + un bouton qui ouvre le widget
 // KKiaPay ; au succès, confirme côté serveur puis rafraîchit la page pour révéler le contenu
 // (le contenu verrouillé n'est de toute façon jamais envoyé au navigateur avant déblocage).
-export default function BoutonDeblocage({ chapitreId, livreId, prixFcfa }) {
+export default function BoutonDeblocage({ chapitreId, livreId, prixFcfa, publieLe }) {
   const router = useRouter()
   const [statut, setStatut] = useState('repos') // repos | ouverture | verification | erreur
   const [scriptPret, setScriptPret] = useState(false)
@@ -71,7 +71,13 @@ export default function BoutonDeblocage({ chapitreId, livreId, prixFcfa }) {
     <div className="border border-ligne rounded-2xl p-8 text-center my-10">
       <Script src="https://cdn.kkiapay.me/k.js" strategy="afterInteractive" onLoad={() => setScriptPret(true)} />
       <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-3">Contenu verrouillé</p>
-      <p className="text-papier/60 mb-6">Débloquez ce {chapitreId ? 'chapitre' : 'livre'} pour continuer la lecture.</p>
+      <p className="text-papier/60 mb-2">Débloquez ce {chapitreId ? 'chapitre' : 'livre'} en avant-première pour continuer la lecture.</p>
+      {publieLe && (
+        <p className="text-papier/35 text-xs mb-6">
+          Ou attendez — il devient gratuit pour tous le{' '}
+          {new Date(publieLe).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.
+        </p>
+      )}
       <button
         onClick={payer}
         disabled={statut === 'ouverture' || statut === 'verification'}

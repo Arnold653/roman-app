@@ -31,22 +31,32 @@ export default async function RomanPage({ params, searchParams }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Roman introuvable.</div>
   }
 
-  const { data: chapitres } = await supabase
+  const { data: chapitresPublies } = await supabase
     .from('chapitres')
     .select('*')
     .eq('roman_id', roman.id)
     .lte('publie_le', new Date().toISOString())
     .order('numero', { ascending: true })
 
+  // Chapitres programmés (pas encore sortis) mais payants pour un accès anticipé. La policy RLS
+  // bloque ces lignes pour un lecteur normal (comportement voulu pour les chapitres gratuits à
+  // venir), donc on passe par le client admin pour CEUX-LÀ uniquement, et seulement s'ils ont un
+  // prix — un chapitre programmé gratuit (prix_fcfa = 0) reste totalement invisible avant sa sortie.
+  const admin = createAdminClient()
+  const { data: chapitresAnticipes } = await admin
+    .from('chapitres')
+    .select('*')
+    .eq('roman_id', roman.id)
+    .gt('publie_le', new Date().toISOString())
+    .gt('prix_fcfa', 0)
+    .order('numero', { ascending: true })
+
+  const chapitres = [...(chapitresPublies || []), ...(chapitresAnticipes || [])].sort((a, b) => a.numero - b.numero)
+
   const premier = chapitres?.[0]
 
-  // Prochaine "Première" : le chapitre programmé le plus proche, pas encore sorti.
-  // ⚠️ Depuis le correctif RLS (migration-fix-rls-visibilite.sql), la policy sur `chapitres`
-  // ne renvoie plus les lignes dont publie_le est dans le futur à un lecteur normal — ce qui
-  // cassait silencieusement ce compte à rebours pour tout le monde sauf l'admin. On passe donc
-  // par le client admin pour cet aperçu, mais en ne sélectionnant QUE les métadonnées (jamais
-  // `contenu`) : le compte à rebours doit rester visible, pas le texte du chapitre à venir.
-  const admin = createAdminClient()
+  // Prochaine "Première" : le chapitre programmé le plus proche, pas encore sorti (gratuit ou
+  // payant en avant-première). On ne sélectionne que les métadonnées, jamais `contenu`.
   const { data: prochaineParution } = await admin
     .from('chapitres')
     .select('numero, titre, publie_le')
@@ -73,9 +83,12 @@ export default async function RomanPage({ params, searchParams }) {
   const precedent = index > 0 ? chapitres[index - 1] : null
   const suivant = index >= 0 && index < (chapitres?.length ?? 0) - 1 ? chapitres[index + 1] : null
 
-  // Chapitre payant pas encore débloqué par ce lecteur (l'admin voit toujours tout).
+  // Un chapitre n'est verrouillé que s'il est ENCORE programmé (pas encore sorti officiellement)
+  // ET payant. Une fois sa date de sortie passée, il est gratuit pour tout le monde — même pour
+  // ceux qui n'ont jamais payé — donc pas besoin de vérifier de déblocage à ce moment-là.
+  const estEncoreProgramme = courant?.publie_le && new Date(courant.publie_le) > new Date()
   let verrouille = false
-  if (courant?.prix_fcfa > 0 && !estAdmin) {
+  if (estEncoreProgramme && courant?.prix_fcfa > 0 && !estAdmin) {
     const { data: deblocage } = await supabase
       .from('deblocages')
       .select('id')
@@ -122,6 +135,7 @@ export default async function RomanPage({ params, searchParams }) {
               }`}
             >
               Ch. {c.numero}
+              {c.publie_le && new Date(c.publie_le) > new Date() && c.prix_fcfa > 0 ? ' 🔒' : ''}
             </a>
           ))}
         </div>
@@ -138,7 +152,7 @@ export default async function RomanPage({ params, searchParams }) {
             <h2 className="font-display text-3xl text-papier mb-4">{courant.titre}</h2>
           )}
           {verrouille ? (
-            <BoutonDeblocage chapitreId={courant.id} prixFcfa={courant.prix_fcfa} />
+            <BoutonDeblocage chapitreId={courant.id} prixFcfa={courant.prix_fcfa} publieLe={courant.publie_le} />
           ) : (
             <>
               <div className={courant.titre ? 'mb-8' : 'mb-8 mt-2'}>

@@ -6,7 +6,7 @@ import { parserMarkdownRoman } from '@/lib/parseMd'
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
   genere_par_ia: true, verifie_par: '',
-  numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '',
+  numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '', prix_fcfa: 0,
 }
 
 export default function AdminPage() {
@@ -76,6 +76,7 @@ export default function AdminPage() {
       contenu: chapitre.contenu || '',
       citation_fin: chapitre.citation_fin || '',
       publie_le: chapitre.publie_le ? chapitre.publie_le.slice(0, 16) : '',
+      prix_fcfa: chapitre.prix_fcfa || 0,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -388,6 +389,25 @@ export default function AdminPage() {
               />
               <p className="text-papier/30 text-xs mt-2">Programme la sortie : le chapitre reste invisible et n'envoie de notification qu'à cette date.</p>
             </div>
+            <div>
+              <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+                Prix d'accès anticipé, en FCFA (0 = totalement gratuit)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={form.prix_fcfa}
+                onChange={(e) => update('prix_fcfa', e.target.value)}
+                className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
+              />
+              <p className="text-papier/30 text-xs mt-2">
+                Si le chapitre est programmé (date ci-dessus dans le futur) et que ce prix est supérieur à 0,
+                les lecteurs peuvent payer pour le lire avant tout le monde. Une fois la date de sortie passée,
+                le chapitre devient gratuit pour tous, quoi qu'il arrive. Mets 0 pour un chapitre toujours gratuit
+                (recommandé pour le 1er chapitre de chaque roman).
+              </p>
+            </div>
           </>
         )}
 
@@ -541,6 +561,11 @@ export default function AdminPage() {
                           {programme && (
                             <span className="ml-2 text-[0.65rem] font-mono text-or border border-or/30 rounded-full px-2 py-0.5">
                               Programmé
+                            </span>
+                          )}
+                          {programme && chapitre.prix_fcfa > 0 && (
+                            <span className="ml-2 text-[0.65rem] font-mono text-grenat border border-grenat/40 rounded-full px-2 py-0.5">
+                              {chapitre.prix_fcfa} FCFA en avant-première
                             </span>
                           )}
                         </span>
