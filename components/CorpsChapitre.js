@@ -82,11 +82,14 @@ function decouperEnParagraphes(texte) {
   return paragraphes
 }
 
-export default function CorpsChapitre({ texte }) {
+export default function CorpsChapitre({ texte, tailleGrande = false }) {
   const paragraphes = decouperEnParagraphes(texte)
 
   return (
-    <div className="text-papier/85 text-[1.05rem] leading-[1.85] space-y-5 text-justify">
+    <div className={tailleGrande
+      ? 'text-papier/90 text-[1.35rem] leading-[2] space-y-6 text-left'
+      : 'text-papier/85 text-[1.05rem] leading-[1.85] space-y-5 text-justify'
+    }>
       {paragraphes.map((p, i) => {
         if (p === '§SEPARATEUR§') {
           return (
@@ -125,7 +128,7 @@ export default function CorpsChapitre({ texte }) {
           const url = p.slice('§IMAGE§'.length)
           return (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} id={`p-${i}`} src={url} alt="" className="w-full rounded-lg" loading="lazy" />
+            <img key={i} id={`p-${i}`} src={url} alt="" className={tailleGrande ? 'w-full rounded-2xl shadow-lg my-2' : 'w-full rounded-lg'} loading="lazy" />
           )
         }
 

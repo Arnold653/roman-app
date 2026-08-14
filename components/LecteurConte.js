@@ -29,7 +29,7 @@ async function televerserImage(baseApi, slug, nom, dataUrl) {
 //   colonneId   : ex. 'conte_id'
 export default function LecteurConte({
   url, slug, contenuId, contenuInitial, sectionInitiale = 0,
-  baseApi, tableProgression, colonneId,
+  baseApi, tableProgression, colonneId, tailleGrande = false,
 }) {
   const [sections, setSections] = useState(contenuInitial?.sections || null)
   const [tableMatieres, setTableMatieres] = useState(contenuInitial?.tableMatieres || [])
@@ -198,7 +198,7 @@ export default function LecteurConte({
         <LectureAudio texte={texteAudio} titre={titreAudio} />
       </div>
 
-      <CorpsChapitre texte={texteSection} />
+      <CorpsChapitre texte={texteSection} tailleGrande={tailleGrande} />
 
       {sections.length > 1 && (
         <div className="flex items-center justify-between mt-16 pt-8 border-t border-ligne font-mono text-sm">
