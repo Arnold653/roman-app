@@ -61,6 +61,7 @@ export default function SiteHeader() {
     ...(connecte ? [{ href: '/', label: 'Accueil' }] : []),
     { href: '/romans', label: 'Romans' },
     { href: '/livres', label: 'Livres' },
+    { href: '/contes-africains', label: 'Contes Africains' },
     ...(connecte ? [{ href: '/fil', label: 'Fil' }] : []),
     { href: '/communaute', label: 'Communauté' },
     { href: '/lecteurs', label: 'Découvrir' },

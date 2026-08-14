@@ -320,8 +320,11 @@ export default function AdminPage() {
           {edition ? (edition.type === 'roman' ? 'Modifier le roman' : 'Modifier le chapitre') : modeChapitreSeul ? 'Nouveau chapitre' : 'Publier'}
         </h1>
       </div>
-      <a href="/admin/livres" className="inline-block text-xs font-mono uppercase tracking-wide text-or hover:brightness-125 mb-4">
+      <a href="/admin/livres" className="inline-block text-xs font-mono uppercase tracking-wide text-or hover:brightness-125 mb-4 mr-4">
         Gérer les livres (PDF) →
+      </a>
+      <a href="/admin/contes-africains" className="inline-block text-xs font-mono uppercase tracking-wide text-[#e69742] hover:brightness-125 mb-4">
+        Gérer les contes africains →
       </a>
       <div className="flex gap-2 mb-4">
         <button

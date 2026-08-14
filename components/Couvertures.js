@@ -32,3 +32,22 @@ export function CouvertureLivre({ titre }) {
     </>
   )
 }
+
+// Couverture des Contes / Histoires Africaines : palette terracotta/ocre chaude, volontairement
+// distincte du bleu-gris de Livres et du thème général, pour créer une identité visuelle propre
+// à cette section (utile pour le référencement et le partage sur TikTok/YouTube).
+export function CouvertureConteAfricain({ titre }) {
+  const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+  return (
+    <>
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(150deg, #7a3b1e 0%, #4a2013 55%, #241009 100%)' }} />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 50% 20%, rgba(230,151,66,0.18) 0%, transparent 55%)' }} />
+      <div className="absolute left-0 top-0 bottom-0 w-[5px]" style={{ background: 'linear-gradient(to bottom, #e69742, #a85a24)' }} />
+      <div className="absolute inset-0 opacity-[0.14] mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)', backgroundSize: '3px 3px' }} />
+      <span className="font-display absolute right-4 top-4 text-[2.4rem] leading-none text-papier/[0.16] select-none pointer-events-none italic" aria-hidden="true">
+        {initiale}
+      </span>
+      <div className="absolute inset-[6px] border border-[#e69742]/[0.18] pointer-events-none" />
+    </>
+  )
+}
