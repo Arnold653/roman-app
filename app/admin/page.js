@@ -372,37 +372,16 @@ export default function AdminPage() {
             {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
 
             {edition?.type === 'roman' && (
-              <>
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
-                    Sortie officielle du roman (optionnel)
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.roman_publie_le}
-                    onChange={(e) => update('roman_publie_le', e.target.value)}
-                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
-                  />
-                  <p className="text-papier/30 text-xs mt-2">
-                    Laisse vide pour un roman disponible normalement (dès qu'il est "Publié"). Mets une date
-                    future pour en faire un "Roman en Première" : avant cette date, seuls ceux qui paient
-                    l'accès anticipé ci-dessous peuvent le lire ; après, il devient gratuit pour tous.
-                  </p>
-                </div>
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
-                    Prix de l'accès anticipé, en FCFA (0 = pas de Première, juste une sortie programmée)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="50"
-                    value={form.roman_prix_fcfa}
-                    onChange={(e) => update('roman_prix_fcfa', e.target.value)}
-                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
-                  />
-                </div>
-              </>
+              <div className="border border-or/20 rounded-lg px-4 py-3">
+                <p className="text-xs font-mono uppercase tracking-wide text-or/70 mb-1.5">Roman en Première — automatique</p>
+                <p className="text-papier/40 text-xs leading-relaxed">
+                  Rien à régler ici : si le 1er chapitre a une date de sortie future (champ "Sortie
+                  programmée" dans son propre formulaire), le roman devient automatiquement une "Première".
+                  Le prix de l'accès anticipé au roman entier est calculé tout seul : la moitié du prix
+                  cumulé de tous les chapitres déjà écrits. Ajoute/ajuste les prix chapitre par chapitre,
+                  le reste suit.
+                </p>
+              </div>
             )}
           </>
         )}

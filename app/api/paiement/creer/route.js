@@ -51,8 +51,49 @@ export async function POST(request) {
     })
   }
 
-  const table = chapitreId ? 'chapitres' : romanId ? 'romans' : 'livres'
-  const id = chapitreId || romanId || livreId
+  // Le prix de l'accès anticipé à un roman ENTIER n'est pas une colonne fixe : c'est la moitié
+  // du prix cumulé de tous ses chapitres déjà écrits, recalculée ici pour ne jamais faire confiance
+  // à un montant que le client aurait pu suggérer.
+  if (romanId) {
+    const { data: chapitresDuRoman } = await admin.from('chapitres').select('prix_fcfa').eq('roman_id', romanId)
+    const total = (chapitresDuRoman || []).reduce((s, c) => s + (c.prix_fcfa || 0), 0)
+    const prixRoman = Math.round(total / 2)
+
+    if (prixRoman <= 0) {
+      return NextResponse.json({ error: "Ce roman n'a pas d'accès anticipé payant" }, { status: 400 })
+    }
+
+    const { data: dejaDebloqueRoman } = await admin
+      .from('deblocages')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('roman_id', romanId)
+      .eq('statut', 'reussi')
+      .eq('type', 'deblocage')
+      .maybeSingle()
+
+    if (dejaDebloqueRoman) {
+      return NextResponse.json({ error: 'Déjà débloqué' }, { status: 409 })
+    }
+
+    const { data: deblocageRoman, error: erreurRoman } = await admin
+      .from('deblocages')
+      .insert({ user_id: user.id, roman_id: romanId, montant_fcfa: prixRoman, statut: 'en_attente', type: 'deblocage' })
+      .select('id')
+      .single()
+
+    if (erreurRoman) return NextResponse.json({ error: 'Erreur création du paiement' }, { status: 500 })
+
+    return NextResponse.json({
+      deblocageId: deblocageRoman.id,
+      montant: prixRoman,
+      publicKey: process.env.KKIAPAY_PUBLIC_KEY,
+      sandbox: process.env.KKIAPAY_SANDBOX === 'true',
+    })
+  }
+
+  const table = chapitreId ? 'chapitres' : 'livres'
+  const id = chapitreId || livreId
 
   const colonnes = livreId ? 'id, prix_fcfa, mode_monetisation' : 'id, prix_fcfa'
   const { data: cible } = await admin.from(table).select(colonnes).eq('id', id).single()
@@ -68,7 +109,7 @@ export async function POST(request) {
   }
 
   // Déjà débloqué ? On ne recrée pas de paiement (uniquement pour un vrai déblocage, pas un pourboire).
-  const champCible = chapitreId ? 'chapitre_id' : romanId ? 'roman_id' : 'livre_id'
+  const champCible = chapitreId ? 'chapitre_id' : 'livre_id'
   const { data: dejaDebloque } = await admin
     .from('deblocages')
     .select('id')
@@ -87,7 +128,6 @@ export async function POST(request) {
     .insert({
       user_id: user.id,
       chapitre_id: chapitreId || null,
-      roman_id: romanId || null,
       livre_id: livreId || null,
       montant_fcfa: cible.prix_fcfa,
       statut: 'en_attente',
