@@ -31,27 +31,74 @@ export default async function RomanPage({ params, searchParams }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Roman introuvable.</div>
   }
 
-  const { data: chapitresPublies } = await supabase
-    .from('chapitres')
-    .select('*')
-    .eq('roman_id', roman.id)
-    .lte('publie_le', new Date().toISOString())
-    .order('numero', { ascending: true })
+  // "Roman en Première" : le roman entier est programmé pour une sortie officielle future, avec
+  // un prix d'accès anticipé. Avant cette date, seul un lecteur ayant payé (ou l'admin) peut lire
+  // quoi que ce soit — sinon on affiche uniquement la fiche du roman + le compte à rebours + le
+  // bouton pour débloquer, aucun chapitre n'est chargé.
+  const romanEnPremiere = roman.publie_le && new Date(roman.publie_le) > new Date() && roman.prix_fcfa > 0
+  let romanDebloque = estAdmin
+  if (romanEnPremiere && !estAdmin) {
+    const { data: deblocageRoman } = await supabase
+      .from('deblocages')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('roman_id', roman.id)
+      .eq('statut', 'reussi')
+      .eq('type', 'deblocage')
+      .maybeSingle()
+    romanDebloque = !!deblocageRoman
+  }
 
-  // Chapitres programmés (pas encore sortis) mais payants pour un accès anticipé. La policy RLS
-  // bloque ces lignes pour un lecteur normal (comportement voulu pour les chapitres gratuits à
-  // venir), donc on passe par le client admin pour CEUX-LÀ uniquement, et seulement s'ils ont un
-  // prix — un chapitre programmé gratuit (prix_fcfa = 0) reste totalement invisible avant sa sortie.
+  if (romanEnPremiere && !romanDebloque) {
+    return (
+      <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever text-center">
+        {roman.genre && (
+          <span className="font-mono text-[0.65rem] uppercase tracking-widest text-or border border-or/30 rounded-full px-2.5 py-1">
+            {roman.genre}
+          </span>
+        )}
+        <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-4 leading-tight">{roman.titre}</h1>
+        {roman.resume && <p className="text-papier/60 leading-relaxed mb-2 text-left">{roman.resume}</p>}
+        <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mt-8 mb-2">Sortie officielle</p>
+        <p className="text-papier/70 mb-8">
+          {new Date(roman.publie_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </p>
+        <BoutonDeblocage romanId={roman.id} prixFcfa={roman.prix_fcfa} publieLe={roman.publie_le} libelle="ce roman en avant-première" />
+      </div>
+    )
+  }
+
   const admin = createAdminClient()
-  const { data: chapitresAnticipes } = await admin
-    .from('chapitres')
-    .select('*')
-    .eq('roman_id', roman.id)
-    .gt('publie_le', new Date().toISOString())
-    .gt('prix_fcfa', 0)
-    .order('numero', { ascending: true })
 
-  const chapitres = [...(chapitresPublies || []), ...(chapitresAnticipes || [])].sort((a, b) => a.numero - b.numero)
+  let chapitres
+  if (romanDebloque && romanEnPremiere) {
+    // Accès anticipé payé pour tout le roman : tout ce qui est déjà écrit devient lisible,
+    // peu importe la date de sortie individuelle de chaque chapitre.
+    const { data } = await admin.from('chapitres').select('*').eq('roman_id', roman.id).order('numero', { ascending: true })
+    chapitres = data || []
+  } else {
+    const { data: chapitresPublies } = await supabase
+      .from('chapitres')
+      .select('*')
+      .eq('roman_id', roman.id)
+      .lte('publie_le', new Date().toISOString())
+      .order('numero', { ascending: true })
+
+    // Chapitres programmés (pas encore sortis) mais payants pour un accès anticipé (à l'échelle du
+    // chapitre, pas du roman). La policy RLS bloque ces lignes pour un lecteur normal (comportement
+    // voulu pour les chapitres gratuits à venir), donc on passe par le client admin pour CEUX-LÀ
+    // uniquement, et seulement s'ils ont un prix — un chapitre programmé gratuit (prix_fcfa = 0)
+    // reste totalement invisible avant sa sortie.
+    const { data: chapitresAnticipes } = await admin
+      .from('chapitres')
+      .select('*')
+      .eq('roman_id', roman.id)
+      .gt('publie_le', new Date().toISOString())
+      .gt('prix_fcfa', 0)
+      .order('numero', { ascending: true })
+
+    chapitres = [...(chapitresPublies || []), ...(chapitresAnticipes || [])].sort((a, b) => a.numero - b.numero)
+  }
 
   const premier = chapitres?.[0]
 

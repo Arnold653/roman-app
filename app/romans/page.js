@@ -8,7 +8,7 @@ export default async function RomansPage() {
   const [{ data: romans }, { data: chapitres }, { data: likes }, { data: commentaires }] = await Promise.all([
     supabase
       .from('romans')
-      .select('id, titre, slug, resume, genre, couverture_url, genere_par_ia, verifie_par, created_at')
+      .select('id, titre, slug, resume, genre, couverture_url, genere_par_ia, verifie_par, created_at, publie_le, prix_fcfa')
       .eq('statut_visibilite', 'publie'),
     supabase
       .from('chapitres')

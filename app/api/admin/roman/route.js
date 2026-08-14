@@ -73,6 +73,8 @@ export async function PATCH(request) {
       .update({
         titre: body.titre, resume: body.resume, genre: body.genre,
         genere_par_ia: body.genere_par_ia ?? true, verifie_par: body.verifie_par || null,
+        publie_le: body.roman_publie_le || null,
+        prix_fcfa: Number(body.roman_prix_fcfa) || 0,
       })
       .eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })

@@ -7,6 +7,7 @@ const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
   genere_par_ia: true, verifie_par: '',
   numero: 1, chapitre_titre: '', contenu: '', citation_fin: '', publie_le: '', prix_fcfa: 100,
+  roman_publie_le: '', roman_prix_fcfa: 0,
 }
 
 export default function AdminPage() {
@@ -61,6 +62,8 @@ export default function AdminPage() {
     setForm({
       ...FORM_VIDE, titre: roman.titre, slug: roman.slug, resume: roman.resume, genre: roman.genre,
       genere_par_ia: roman.genere_par_ia ?? true, verifie_par: roman.verifie_par || '',
+      roman_publie_le: roman.publie_le ? roman.publie_le.slice(0, 16) : '',
+      roman_prix_fcfa: roman.prix_fcfa || 0,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -367,6 +370,40 @@ export default function AdminPage() {
               Généré avec l'aide de l'IA
             </label>
             {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
+
+            {edition?.type === 'roman' && (
+              <>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+                    Sortie officielle du roman (optionnel)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.roman_publie_le}
+                    onChange={(e) => update('roman_publie_le', e.target.value)}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
+                  />
+                  <p className="text-papier/30 text-xs mt-2">
+                    Laisse vide pour un roman disponible normalement (dès qu'il est "Publié"). Mets une date
+                    future pour en faire un "Roman en Première" : avant cette date, seuls ceux qui paient
+                    l'accès anticipé ci-dessous peuvent le lire ; après, il devient gratuit pour tous.
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+                    Prix de l'accès anticipé, en FCFA (0 = pas de Première, juste une sortie programmée)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={form.roman_prix_fcfa}
+                    onChange={(e) => update('roman_prix_fcfa', e.target.value)}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
 

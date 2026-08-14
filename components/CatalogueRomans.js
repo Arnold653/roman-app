@@ -41,6 +41,11 @@ function CarteRoman({ roman, vedette = false }) {
                 Nouveau chapitre
               </span>
             )}
+            {roman.publie_le && new Date(roman.publie_le) > new Date() && roman.prix_fcfa > 0 && (
+              <span className="font-mono text-[0.65rem] uppercase tracking-widest text-papier/80 border border-grenat/60 rounded-full px-2.5 py-1 bg-black/10 backdrop-blur-sm">
+                🔒 En Première
+              </span>
+            )}
           </div>
           <div>
             <div className="w-6 h-[1.5px] bg-or/70 mb-3" />

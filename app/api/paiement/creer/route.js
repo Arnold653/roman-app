@@ -12,13 +12,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
   }
 
-  const { chapitreId, livreId, pourboire, montant } = await request.json()
+  const { chapitreId, livreId, romanId, pourboire, montant } = await request.json()
 
-  if (!chapitreId && !livreId) {
-    return NextResponse.json({ error: 'chapitreId ou livreId requis' }, { status: 400 })
-  }
-  if (chapitreId && livreId) {
-    return NextResponse.json({ error: 'Un seul de chapitreId / livreId à la fois' }, { status: 400 })
+  const nbCibles = [chapitreId, livreId, romanId].filter(Boolean).length
+  if (nbCibles !== 1) {
+    return NextResponse.json({ error: 'Un seul de chapitreId / livreId / romanId à la fois' }, { status: 400 })
   }
 
   const admin = createAdminClient()
@@ -53,10 +51,11 @@ export async function POST(request) {
     })
   }
 
-  const table = chapitreId ? 'chapitres' : 'livres'
-  const id = chapitreId || livreId
+  const table = chapitreId ? 'chapitres' : romanId ? 'romans' : 'livres'
+  const id = chapitreId || romanId || livreId
 
-  const { data: cible } = await admin.from(table).select('id, prix_fcfa, mode_monetisation').eq('id', id).single()
+  const colonnes = livreId ? 'id, prix_fcfa, mode_monetisation' : 'id, prix_fcfa'
+  const { data: cible } = await admin.from(table).select(colonnes).eq('id', id).single()
 
   if (!cible) {
     return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
@@ -69,11 +68,12 @@ export async function POST(request) {
   }
 
   // Déjà débloqué ? On ne recrée pas de paiement (uniquement pour un vrai déblocage, pas un pourboire).
+  const champCible = chapitreId ? 'chapitre_id' : romanId ? 'roman_id' : 'livre_id'
   const { data: dejaDebloque } = await admin
     .from('deblocages')
     .select('id')
     .eq('user_id', user.id)
-    .eq(chapitreId ? 'chapitre_id' : 'livre_id', id)
+    .eq(champCible, id)
     .eq('statut', 'reussi')
     .eq('type', 'deblocage')
     .maybeSingle()
@@ -87,6 +87,7 @@ export async function POST(request) {
     .insert({
       user_id: user.id,
       chapitre_id: chapitreId || null,
+      roman_id: romanId || null,
       livre_id: livreId || null,
       montant_fcfa: cible.prix_fcfa,
       statut: 'en_attente',
