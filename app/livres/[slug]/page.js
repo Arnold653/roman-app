@@ -1,7 +1,10 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import BadgeTransparence from '@/components/BadgeTransparence'
 import LecteurPDF from '@/components/LecteurPDF'
+import BoutonDeblocage from '@/components/BoutonDeblocage'
+import BoutonPourboire from '@/components/BoutonPourboire'
 
 export default async function LivreDetailPage({ params }) {
   const supabase = createClient()
@@ -18,14 +21,36 @@ export default async function LivreDetailPage({ params }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Livre introuvable.</div>
   }
 
+  // Mode 'payant' : le livre entier est verrouillé tant qu'il n'est pas débloqué (l'admin voit toujours tout).
+  let verrouille = false
+  // Mode 'bonus' : le livre reste gratuit, seul le contenu bonus est verrouillé.
+  let bonusDebloque = false
+
+  if (!estAdmin && (livre.mode_monetisation === 'payant' || livre.mode_monetisation === 'bonus')) {
+    const { data: deblocage } = await supabase
+      .from('deblocages')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('livre_id', livre.id)
+      .eq('statut', 'reussi')
+      .eq('type', 'deblocage')
+      .maybeSingle()
+
+    if (livre.mode_monetisation === 'payant') verrouille = !deblocage
+    if (livre.mode_monetisation === 'bonus') bonusDebloque = !!deblocage
+  }
+  if (estAdmin && livre.mode_monetisation === 'bonus') bonusDebloque = true
+
   let sectionInitiale = 0
-  const { data: progression } = await supabase
-    .from('lecture_progress_livres')
-    .select('derniere_section')
-    .eq('user_id', user.id)
-    .eq('livre_id', livre.id)
-    .maybeSingle()
-  sectionInitiale = progression?.derniere_section || 0
+  if (!verrouille) {
+    const { data: progression } = await supabase
+      .from('lecture_progress_livres')
+      .select('derniere_section')
+      .eq('user_id', user.id)
+      .eq('livre_id', livre.id)
+      .maybeSingle()
+    sectionInitiale = progression?.derniere_section || 0
+  }
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
@@ -48,13 +73,34 @@ export default async function LivreDetailPage({ params }) {
         <BadgeTransparence generePar={livre.genere_par_ia} verifiePar={livre.verifie_par} />
       </div>
 
-      <LecteurPDF
-        url={livre.fichier_url}
-        slug={livre.slug}
-        livreId={livre.id}
-        contenuInitial={livre.contenu_extrait || null}
-        sectionInitiale={sectionInitiale}
-      />
+      {verrouille ? (
+        <BoutonDeblocage livreId={livre.id} prixFcfa={livre.prix_fcfa} />
+      ) : (
+        <LecteurPDF
+          url={livre.fichier_url}
+          slug={livre.slug}
+          livreId={livre.id}
+          contenuInitial={livre.contenu_extrait || null}
+          sectionInitiale={sectionInitiale}
+        />
+      )}
+
+      {!verrouille && livre.mode_monetisation === 'pourboire' && (
+        <BoutonPourboire livreId={livre.id} />
+      )}
+
+      {!verrouille && livre.mode_monetisation === 'bonus' && (
+        bonusDebloque ? (
+          livre.bonus_contenu ? (
+            <div className="border border-or/30 rounded-2xl p-8 my-10">
+              <p className="font-mono text-xs uppercase tracking-widest text-or mb-4">Bonus débloqué</p>
+              <p className="text-papier/80 leading-relaxed whitespace-pre-wrap">{livre.bonus_contenu}</p>
+            </div>
+          ) : null
+        ) : (
+          <BoutonDeblocage livreId={livre.id} prixFcfa={livre.prix_fcfa} libelle="le contenu bonus" />
+        )
+      )}
     </div>
   )
 }

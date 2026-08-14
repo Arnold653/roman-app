@@ -41,6 +41,35 @@ export default function AdminLivresPage() {
   const [fichier, setFichier] = useState(null)
   const [apercu, setApercu] = useState(null) // { contenu, sections } prêt à être envoyé
   const [livresPlies, setLivresPlies] = useState(new Set())
+  const [monetisation, setMonetisation] = useState({}) // { [livreId]: { mode_monetisation, prix_fcfa, bonus_contenu } }
+  const [monetisationOuverte, setMonetisationOuverte] = useState(null) // id du livre en cours d'édition
+
+  function ouvrirMonetisation(livre) {
+    setMonetisationOuverte(livre.id)
+    setMonetisation((m) => ({
+      ...m,
+      [livre.id]: {
+        mode_monetisation: livre.mode_monetisation || 'gratuit',
+        prix_fcfa: livre.prix_fcfa || 0,
+        bonus_contenu: livre.bonus_contenu || '',
+      },
+    }))
+  }
+
+  function majMonetisation(livreId, champ, valeur) {
+    setMonetisation((m) => ({ ...m, [livreId]: { ...m[livreId], [champ]: valeur } }))
+  }
+
+  async function sauvegarderMonetisation(livreId) {
+    const donnees = monetisation[livreId]
+    const res = await fetch('/api/admin/livre', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'monetisation', id: livreId, ...donnees }),
+    })
+    if (res.ok) { setMessage('Monétisation enregistrée ✓'); setMonetisationOuverte(null); charger() }
+    else setMessage('Erreur lors de l\'enregistrement de la monétisation')
+  }
 
   function basculerPliLivre(id) {
     setLivresPlies((s) => {
@@ -266,6 +295,67 @@ export default function AdminLivresPage() {
                 {l.statut === 'publie' ? 'Publié' : 'Brouillon'}
               </button>
             </div>
+
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[0.65rem] font-mono uppercase tracking-wide text-papier/40 border border-ligne rounded-full px-2.5 py-1">
+                {{ gratuit: 'Gratuit', pourboire: 'Gratuit + pourboire', payant: 'Payant', bonus: 'Gratuit + bonus payant' }[l.mode_monetisation || 'gratuit']}
+                {l.prix_fcfa > 0 && (l.mode_monetisation === 'payant' || l.mode_monetisation === 'bonus') ? ` · ${l.prix_fcfa} FCFA` : ''}
+              </span>
+              <button
+                onClick={() => (monetisationOuverte === l.id ? setMonetisationOuverte(null) : ouvrirMonetisation(l))}
+                className="text-[0.65rem] font-mono text-or hover:brightness-125"
+              >
+                {monetisationOuverte === l.id ? 'Fermer' : 'Modifier'}
+              </button>
+            </div>
+
+            {monetisationOuverte === l.id && (
+              <div className="bg-encre border border-ligne rounded-lg p-4 mb-3 space-y-3">
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">Mode de monétisation</label>
+                  <select
+                    value={monetisation[l.id]?.mode_monetisation}
+                    onChange={(e) => majMonetisation(l.id, 'mode_monetisation', e.target.value)}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or"
+                  >
+                    <option value="gratuit">Gratuit</option>
+                    <option value="pourboire">Gratuit + pourboire libre</option>
+                    <option value="payant">Entièrement payant</option>
+                    <option value="bonus">Gratuit + bonus payant à côté</option>
+                  </select>
+                </div>
+                {(monetisation[l.id]?.mode_monetisation === 'payant' || monetisation[l.id]?.mode_monetisation === 'bonus') && (
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+                      Prix en FCFA {monetisation[l.id]?.mode_monetisation === 'bonus' ? '(du bonus)' : '(du livre entier)'}
+                    </label>
+                    <input
+                      type="number" min="0" step="50"
+                      value={monetisation[l.id]?.prix_fcfa}
+                      onChange={(e) => majMonetisation(l.id, 'prix_fcfa', e.target.value)}
+                      className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or"
+                    />
+                  </div>
+                )}
+                {monetisation[l.id]?.mode_monetisation === 'bonus' && (
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">Texte du bonus (postface, notes, chapitre inédit...)</label>
+                    <textarea
+                      rows={4}
+                      value={monetisation[l.id]?.bonus_contenu}
+                      onChange={(e) => majMonetisation(l.id, 'bonus_contenu', e.target.value)}
+                      className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-or"
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={() => sauvegarderMonetisation(l.id)}
+                  className="w-full bg-or text-encre text-sm font-medium rounded-lg px-3 py-2.5 hover:brightness-110 transition-all"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            )}
 
             {!plie && sections.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
