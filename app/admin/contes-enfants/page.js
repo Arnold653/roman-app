@@ -5,6 +5,7 @@ import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
+import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
@@ -41,6 +42,14 @@ export default function AdminContesEnfantsPage() {
   const [fichier, setFichier] = useState(null)
   const [apercu, setApercu] = useState(null)
   const [contesPlies, setContesPlies] = useState(new Set())
+
+  // --- Upload multiple ---
+  const [fichiersLot, setFichiersLot] = useState([])
+  const [genreLot, setGenreLot] = useState('')
+  const [trancheAgeLot, setTrancheAgeLot] = useState('')
+  const [lotEnCours, setLotEnCours] = useState(false)
+  const [lotProgression, setLotProgression] = useState(null)
+  const [lotResultats, setLotResultats] = useState(null)
 
   function basculerPliConte(id) {
     setContesPlies((s) => {
@@ -132,6 +141,65 @@ export default function AdminContesEnfantsPage() {
     if (res.ok) { setMessage('Supprimé.'); charger() }
   }
 
+  // --- Upload multiple : un conte par fichier, titre+slug auto-détectés, genre et tranche
+  // d'âge choisis une fois pour tout le lot, créés en brouillon.
+  async function importerLot() {
+    if (fichiersLot.length === 0) return
+    setLotEnCours(true)
+    setLotResultats(null)
+    const resultats = []
+    const slugsUtilises = new Set((contes || []).map((c) => c.slug))
+
+    for (let i = 0; i < fichiersLot.length; i++) {
+      const fichier = fichiersLot[i]
+      setLotProgression({ index: i + 1, total: fichiersLot.length, nom: fichier.name })
+      try {
+        const type = detecterType(fichier.name)
+        let contenu
+        if (type === 'pdf') {
+          const bytes = new Uint8Array(await fichier.arrayBuffer())
+          contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+        } else if (type === 'epub') {
+          contenu = await extraireEpub(await fichier.arrayBuffer(), () => {})
+        } else if (type === 'docx') {
+          contenu = await extraireDocx(await fichier.arrayBuffer())
+        } else {
+          contenu = extraireTexteBrut(await fichier.text())
+        }
+
+        const titre = detecterTitreLivre(fichier.name, contenu)
+        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
+        slugsUtilises.add(slug)
+
+        const data = new FormData()
+        data.append('titre', titre)
+        data.append('slug', slug)
+        data.append('auteur', '')
+        data.append('description', '')
+        data.append('genre', genreLot)
+        data.append('tranche_age', trancheAgeLot)
+        data.append('genere_par_ia', 'true')
+        data.append('verifie_par', '')
+        data.append('fichier', fichier)
+        data.append('fichier_type', type)
+        data.append('contenu_extrait', JSON.stringify(contenu))
+        data.append('statut', 'brouillon')
+
+        const res = await fetch('/api/admin/conte-enfant', { method: 'POST', body: data })
+        const resultat = await res.json()
+        resultats.push({ nom: fichier.name, titre, ok: res.ok, message: res.ok ? `/contes-enfants/${resultat.slug}` : resultat.error })
+      } catch (e) {
+        resultats.push({ nom: fichier.name, titre: '—', ok: false, message: e?.message || String(e) })
+      }
+    }
+
+    setLotResultats(resultats)
+    setLotProgression(null)
+    setLotEnCours(false)
+    setFichiersLot([])
+    charger()
+  }
+
   async function viderCache(conte) {
     const res = await fetch('/api/admin/conte-enfant', {
       method: 'PATCH',
@@ -190,6 +258,46 @@ export default function AdminContesEnfantsPage() {
             onChange={(e) => { setFichier(e.target.files?.[0] || null); setApercu(null) }}
             className="w-full text-papier text-sm"
           />
+        </div>
+
+        <div className="border-t border-ligne pt-5">
+          <p className="text-[#ffd166] text-xs font-mono uppercase tracking-widest mb-2">Upload multiple</p>
+          <p className="text-papier/40 text-xs mb-4 leading-relaxed">
+            Plusieurs fichiers d'un coup → un conte par fichier, titre et slug détectés automatiquement, créés en brouillon.
+          </p>
+          <input
+            type="file" multiple accept=".pdf,.md,.txt,.epub,.docx,application/pdf,text/markdown,text/plain,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={(e) => { setFichiersLot(Array.from(e.target.files || [])); setLotResultats(null) }}
+            className="w-full text-papier text-sm mb-3"
+          />
+          {fichiersLot.length > 0 && (
+            <p className="text-papier/50 text-xs font-mono mb-3">{fichiersLot.length} fichier(s) sélectionné(s)</p>
+          )}
+          <input
+            type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
+            placeholder="Genre pour tout le lot (optionnel)"
+            className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#ffd166] transition-colors"
+          />
+          <input
+            type="text" value={trancheAgeLot} onChange={(e) => setTrancheAgeLot(e.target.value)}
+            placeholder="Tranche d'âge pour tout le lot (ex. 3-6 ans)"
+            className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#ffd166] transition-colors"
+          />
+          <button
+            type="button" onClick={importerLot} disabled={lotEnCours || fichiersLot.length === 0}
+            className="w-full bg-encreClair border border-[#ffd166]/40 text-[#ffd166] font-medium rounded-lg px-3 py-3.5 hover:bg-[#ffd166]/10 transition-all disabled:opacity-50"
+          >
+            {lotEnCours ? `Import ${lotProgression?.index || ''}/${lotProgression?.total || ''} — ${lotProgression?.nom || ''}` : `Importer le lot (${fichiersLot.length})`}
+          </button>
+          {lotResultats && (
+            <div className="mt-4 space-y-1.5">
+              {lotResultats.map((r, i) => (
+                <p key={i} className={`text-xs font-mono ${r.ok ? 'text-papier/60' : 'text-red-400'}`}>
+                  {r.ok ? '✓' : '✗'} {r.titre} — {r.message}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="border-t border-ligne pt-5">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { parserMarkdownRoman } from '@/lib/parseMd'
+import { titreDepuisNomFichier, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
@@ -23,6 +24,13 @@ export default function AdminPage() {
   const [planifDepart, setPlanifDepart] = useState('')
   const [planifIntervalle, setPlanifIntervalle] = useState(3)
   const inputFichierRef = useRef(null)
+  const inputLotRef = useRef(null)
+
+  // --- Upload multiple : chaque fichier devient un roman distinct ---
+  const [genreLot, setGenreLot] = useState('')
+  const [lotEnCours, setLotEnCours] = useState(false)
+  const [lotProgression, setLotProgression] = useState(null)
+  const [lotResultats, setLotResultats] = useState(null)
 
   useEffect(() => {
     chargerRomans()
@@ -291,6 +299,96 @@ export default function AdminPage() {
     chargerRomans()
   }
 
+  // Extrait un fichier (pdf/epub/docx/md) et renvoie le résultat parsé { titre, resume, genre,
+  // chapitres }, sans toucher aux états d'aperçu — réutilisé par l'import multiple ci-dessous.
+  async function extraireFichierRoman(fichier) {
+    const ext = fichier.name.split('.').pop().toLowerCase()
+    if (ext === 'md') {
+      const texte = await fichier.text()
+      return parserMarkdownRoman(texte)
+    }
+    let contenu
+    if (ext === 'pdf') {
+      const { extrairePdfDepuisUrl } = await import('@/lib/extractionPdf')
+      const bytes = new Uint8Array(await fichier.arrayBuffer())
+      contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+    } else if (ext === 'epub') {
+      const { extraireEpub } = await import('@/lib/extractionEpub')
+      contenu = await extraireEpub(await fichier.arrayBuffer())
+    } else if (ext === 'docx') {
+      const { extraireDocx } = await import('@/lib/extractionDocx')
+      contenu = await extraireDocx(await fichier.arrayBuffer())
+    } else {
+      throw new Error('Format non pris en charge (utilise .md, .pdf, .epub ou .docx).')
+    }
+    const { paragraphesVersMarkdown } = await import('@/lib/paragraphesVersMarkdown')
+    const markdown = paragraphesVersMarkdown(contenu.paragraphes)
+    return parserMarkdownRoman(markdown)
+  }
+
+  // Import multiple : un fichier = un roman distinct, titre auto-détecté (contenu, sinon nom de
+  // fichier), slug généré et dédupliqué, un seul genre choisi pour tout le lot. Chaque roman est
+  // créé en brouillon (comportement par défaut de la table), à valider ensuite en liste.
+  async function importerLotRomans(e) {
+    const fichiers = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (fichiers.length === 0) return
+
+    setLotEnCours(true)
+    setLotResultats(null)
+    const resultats = []
+    const slugsUtilises = new Set((romans || []).map((r) => r.slug))
+
+    for (let i = 0; i < fichiers.length; i++) {
+      const fichier = fichiers[i]
+      setLotProgression({ index: i + 1, total: fichiers.length, nom: fichier.name })
+      try {
+        const resultat = await extraireFichierRoman(fichier)
+        if (!resultat.chapitres || resultat.chapitres.length === 0) {
+          resultats.push({ nom: fichier.name, titre: '—', ok: false, message: 'Aucun chapitre détecté' })
+          continue
+        }
+
+        const titre = resultat.titre || titreDepuisNomFichier(fichier.name)
+        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
+        slugsUtilises.add(slug)
+        const genre = genreLot || resultat.genre || ''
+        const resume = resultat.resume || ''
+
+        let dernierSlug = slug
+        let erreur = null
+        for (const chap of resultat.chapitres) {
+          const res = await fetch('/api/admin/roman', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              titre, slug, resume, genre,
+              numero: chap.numero,
+              chapitre_titre: chap.titre,
+              contenu: chap.contenu,
+              citation_fin: chap.citation_fin,
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) { erreur = data.error; break }
+          dernierSlug = data.slug
+        }
+
+        resultats.push({
+          nom: fichier.name, titre, ok: !erreur,
+          message: erreur || `${resultat.chapitres.length} chapitre(s) — /roman/${dernierSlug}`,
+        })
+      } catch (err) {
+        resultats.push({ nom: fichier.name, titre: '—', ok: false, message: err?.message || String(err) })
+      }
+    }
+
+    setLotResultats(resultats)
+    setLotProgression(null)
+    setLotEnCours(false)
+    chargerRomans()
+  }
+
   const champ = (label, field, type = 'text') => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
@@ -342,6 +440,13 @@ export default function AdminPage() {
         >
           {importEnCours ? 'Import en cours…' : 'Importer un roman'}
         </button>
+        <button
+          onClick={() => inputLotRef.current?.click()}
+          disabled={lotEnCours}
+          className="text-xs font-mono uppercase tracking-wide border border-ligne rounded-full px-3 py-1.5 text-papier/60 hover:border-or hover:text-or transition-colors disabled:opacity-50"
+        >
+          {lotEnCours ? `Import ${lotProgression?.index || ''}/${lotProgression?.total || ''}…` : 'Importer plusieurs romans'}
+        </button>
       </div>
       <input
         ref={inputFichierRef}
@@ -350,6 +455,34 @@ export default function AdminPage() {
         onChange={choisirFichier}
         className="hidden"
       />
+      <input
+        ref={inputLotRef}
+        type="file"
+        multiple
+        accept=".md,.pdf,.epub,.docx,text/markdown,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        onChange={importerLotRomans}
+        className="hidden"
+      />
+      <div className="border border-ligne rounded-lg p-4 bg-encreClair mb-6">
+        <p className="text-papier/70 text-sm mb-3">
+          Import multiple — un fichier = un roman distinct, créé en brouillon.
+        </p>
+        <input
+          type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
+          placeholder="Genre pour tout le lot (optionnel, sinon détecté par fichier)"
+          disabled={lotEnCours}
+          className="w-full bg-encre border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors disabled:opacity-50"
+        />
+        {lotResultats && (
+          <div className="space-y-1.5 mt-3">
+            {lotResultats.map((r, i) => (
+              <p key={i} className={`text-xs font-mono ${r.ok ? 'text-papier/60' : 'text-red-400'}`}>
+                {r.ok ? '✓' : '✗'} {r.titre} — {r.message}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
         {modeChapitreSeul
           ? `Ajout rapide à « ${form.titre} » — les infos du roman restent inchangées.`
