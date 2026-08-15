@@ -31,6 +31,10 @@ export default function AdminPage() {
   const [lotEnCours, setLotEnCours] = useState(false)
   const [lotProgression, setLotProgression] = useState(null)
   const [lotResultats, setLotResultats] = useState(null)
+  const [lotApercu, setLotApercu] = useState(null) // [{ nom, titre, slug, resume, genre, chapitres }], en attente de confirmation
+  const [lotPlanifier, setLotPlanifier] = useState(false)
+  const [lotPlanifDepart, setLotPlanifDepart] = useState('')
+  const [lotRomansPlies, setLotRomansPlies] = useState(new Set())
 
   useEffect(() => {
     chargerRomans()
@@ -329,14 +333,14 @@ export default function AdminPage() {
   // Import multiple : un fichier = un roman distinct, titre auto-détecté (contenu, sinon nom de
   // fichier), slug généré et dédupliqué, un seul genre choisi pour tout le lot. Chaque roman est
   // créé en brouillon (comportement par défaut de la table), à valider ensuite en liste.
-  async function importerLotRomans(e) {
+  async function choisirFichiersLot(e) {
     const fichiers = Array.from(e.target.files || [])
     e.target.value = ''
     if (fichiers.length === 0) return
 
     setLotEnCours(true)
     setLotResultats(null)
-    const resultats = []
+    const apercu = []
     const slugsUtilises = new Set((romans || []).map((r) => r.slug))
 
     for (let i = 0; i < fichiers.length; i++) {
@@ -345,47 +349,125 @@ export default function AdminPage() {
       try {
         const resultat = await extraireFichierRoman(fichier)
         if (!resultat.chapitres || resultat.chapitres.length === 0) {
-          resultats.push({ nom: fichier.name, titre: '—', ok: false, message: 'Aucun chapitre détecté' })
+          apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: 'Aucun chapitre détecté' })
           continue
         }
-
         const titre = resultat.titre || titreDepuisNomFichier(fichier.name)
         const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
         slugsUtilises.add(slug)
-        const genre = genreLot || resultat.genre || ''
-        const resume = resultat.resume || ''
-
-        let dernierSlug = slug
-        let erreur = null
-        for (const chap of resultat.chapitres) {
-          const res = await fetch('/api/admin/roman', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              titre, slug, resume, genre,
-              numero: chap.numero,
-              chapitre_titre: chap.titre,
-              contenu: chap.contenu,
-              citation_fin: chap.citation_fin,
-            }),
-          })
-          const data = await res.json()
-          if (!res.ok) { erreur = data.error; break }
-          dernierSlug = data.slug
-        }
-
-        resultats.push({
-          nom: fichier.name, titre, ok: !erreur,
-          message: erreur || `${resultat.chapitres.length} chapitre(s) — /roman/${dernierSlug}`,
+        apercu.push({
+          nom: fichier.name,
+          titre,
+          slug,
+          resume: resultat.resume || '',
+          genre: genreLot || resultat.genre || '',
+          chapitres: resultat.chapitres.map((c) => ({ ...c, publie_le: '' })),
         })
       } catch (err) {
-        resultats.push({ nom: fichier.name, titre: '—', ok: false, message: err?.message || String(err) })
+        apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: err?.message || String(err) })
       }
+    }
+
+    setLotProgression(null)
+    setLotEnCours(false)
+    setLotPlanifier(false)
+    const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    setLotPlanifDepart(maintenant.toISOString().slice(0, 16))
+    setLotPlanifIntervalle(3)
+    setLotApercu(apercu)
+  }
+
+  // Applique la même règle que repartirChapitres, mais à chaque roman du lot indépendamment :
+  // le chapitre 1 de CHAQUE roman part de `depart`, puis +intervalle jours par chapitre suivant.
+  // Chaque date reste ensuite modifiable au cas par cas, exactement comme pour un import simple.
+  function repartirLot(depart, intervalleJours) {
+    if (!lotApercu || !depart) return
+    const base = new Date(depart)
+    setLotApercu(
+      lotApercu.map((roman) => ({
+        ...roman,
+        chapitres: roman.chapitres.map((c, i) => {
+          const date = new Date(base.getTime() + i * intervalleJours * 86400000)
+          const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+          return { ...c, publie_le: local.toISOString().slice(0, 16) }
+        }),
+      }))
+    )
+  }
+
+  function basculerPlanificationLot(active) {
+    setLotPlanifier(active)
+    if (active) {
+      repartirLot(lotPlanifDepart, lotPlanifIntervalle)
+    } else {
+      setLotApercu(lotApercu.map((roman) => ({ ...roman, chapitres: roman.chapitres.map((c) => ({ ...c, publie_le: '' })) })))
+    }
+  }
+
+  function modifierDateChapitreLot(indexRoman, numero, valeur) {
+    setLotApercu(
+      lotApercu.map((roman, i) =>
+        i !== indexRoman
+          ? roman
+          : { ...roman, chapitres: roman.chapitres.map((c) => (c.numero === numero ? { ...c, publie_le: valeur } : c)) }
+      )
+    )
+  }
+
+  function retirerDuLot(indexRoman) {
+    setLotApercu(lotApercu.filter((_, i) => i !== indexRoman))
+  }
+
+  function basculerPliLot(indexRoman) {
+    setLotRomansPlies((precedent) => {
+      const suivant = new Set(precedent)
+      if (suivant.has(indexRoman)) suivant.delete(indexRoman)
+      else suivant.add(indexRoman)
+      return suivant
+    })
+  }
+
+  async function confirmerLot() {
+    if (!lotApercu) return
+    setLotEnCours(true)
+    const resultats = []
+
+    for (let i = 0; i < lotApercu.length; i++) {
+      const roman = lotApercu[i]
+      setLotProgression({ index: i + 1, total: lotApercu.length, nom: roman.nom })
+      if (roman.erreurExtraction || roman.chapitres.length === 0) {
+        resultats.push({ nom: roman.nom, titre: roman.titre, ok: false, message: roman.erreurExtraction || 'Aucun chapitre détecté' })
+        continue
+      }
+      let dernierSlug = roman.slug
+      let erreur = null
+      for (const chap of roman.chapitres) {
+        const res = await fetch('/api/admin/roman', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titre: roman.titre, slug: roman.slug, resume: roman.resume, genre: roman.genre,
+            numero: chap.numero,
+            chapitre_titre: chap.titre,
+            contenu: chap.contenu,
+            citation_fin: chap.citation_fin,
+            publie_le: chap.publie_le || undefined,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) { erreur = data.error; break }
+        dernierSlug = data.slug
+      }
+      resultats.push({
+        nom: roman.nom, titre: roman.titre, ok: !erreur,
+        message: erreur || `${roman.chapitres.length} chapitre(s) — /roman/${dernierSlug}`,
+      })
     }
 
     setLotResultats(resultats)
     setLotProgression(null)
     setLotEnCours(false)
+    setLotApercu(null)
     chargerRomans()
   }
 
@@ -460,7 +542,7 @@ export default function AdminPage() {
         type="file"
         multiple
         accept=".md,.pdf,.epub,.docx,text/markdown,application/pdf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        onChange={importerLotRomans}
+        onChange={choisirFichiersLot}
         className="hidden"
       />
       <div className="border border-ligne rounded-lg p-4 bg-encreClair mb-6">
@@ -648,6 +730,95 @@ export default function AdminPage() {
                 {loading ? "Import en cours..." : "Confirmer l'import"}
               </button>
               <button onClick={() => setImportant(null)} className="px-5 rounded-lg border border-ligne text-papier/60">Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lotApercu && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6" onClick={() => !lotEnCours && setLotApercu(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-encreClair border border-ligne rounded-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <p className="text-or text-xs font-mono uppercase tracking-widest mb-3">
+              Aperçu du lot — {lotApercu.length} roman(s)
+            </p>
+
+            <label className="flex items-center gap-2 text-sm text-papier/70 mb-3">
+              <input
+                type="checkbox"
+                checked={lotPlanifier}
+                onChange={(e) => basculerPlanificationLot(e.target.checked)}
+              />
+              Programmer la sortie des chapitres (appliqué à chaque roman du lot)
+            </label>
+
+            {lotPlanifier && (
+              <div className="grid grid-cols-2 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
+                  <input
+                    type="datetime-local"
+                    value={lotPlanifDepart}
+                    onChange={(e) => { setLotPlanifDepart(e.target.value); repartirLot(e.target.value, lotPlanifIntervalle) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Puis tous les (jours)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={lotPlanifIntervalle}
+                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifIntervalle(v); repartirLot(lotPlanifDepart, v) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+                <p className="col-span-2 text-[0.68rem] text-papier/35 leading-relaxed">
+                  Même point de départ pour chaque roman du lot — ajuste ensuite au cas par cas ci-dessous si tu veux les décaler entre eux.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-3 mb-6">
+              {lotApercu.map((roman, i) => {
+                const plie = lotRomansPlies.has(i)
+                return (
+                  <div key={i} className="border border-ligne rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <button onClick={() => basculerPliLot(i)} className="flex-1 text-left">
+                        <p className="font-display text-base text-papier">{roman.titre}</p>
+                        <p className="text-papier/40 text-[0.68rem] font-mono">
+                          {roman.erreurExtraction ? roman.erreurExtraction : `${roman.chapitres.length} chapitre(s) — /roman/${roman.slug}`}
+                        </p>
+                      </button>
+                      <button onClick={() => retirerDuLot(i)} className="text-papier/30 hover:text-grenat text-xs font-mono shrink-0">Retirer</button>
+                    </div>
+                    {!plie && !roman.erreurExtraction && (
+                      <ul className="space-y-2 mt-3 pt-3 border-t border-ligne">
+                        {roman.chapitres.map((c) => (
+                          <li key={c.numero} className="text-sm text-papier/70">
+                            <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
+                            {lotPlanifier && (
+                              <input
+                                type="datetime-local"
+                                value={c.publie_le || ''}
+                                onChange={(e) => modifierDateChapitreLot(i, c.numero, e.target.value)}
+                                className="mt-1 w-full bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                              />
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={confirmerLot} disabled={lotEnCours || lotApercu.length === 0} className="flex-1 bg-or text-encre font-medium rounded-lg px-3 py-3 disabled:opacity-50">
+                {lotEnCours ? `Import ${lotProgression?.index || ''}/${lotProgression?.total || ''}…` : `Confirmer l'import (${lotApercu.length})`}
+              </button>
+              <button onClick={() => setLotApercu(null)} disabled={lotEnCours} className="px-5 rounded-lg border border-ligne text-papier/60 disabled:opacity-50">Annuler</button>
             </div>
           </div>
         </div>
