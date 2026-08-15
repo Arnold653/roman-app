@@ -33,7 +33,7 @@ const STYLES_TITRE = {
 // sans jamais dépendre des espaces tapés à la main par l'auteur.
 // Une ligne de dialogue (qui commence par un tiret) démarre toujours un nouveau paragraphe,
 // même si l'auteur a oublié de laisser une ligne vide devant.
-function decouperEnParagraphes(texte) {
+export function decouperEnParagraphes(texte) {
   const blocs = (texte || '').split(/\n\s*\n/)
   const paragraphes = []
 

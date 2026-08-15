@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
-import CorpsChapitre from './CorpsChapitre'
+import CorpsChapitre, { decouperEnParagraphes } from './CorpsChapitre'
 import LectureAudio from './LectureAudio'
+import LectureAudioEnfant from './LectureAudioEnfant'
 
 async function televerserImage(baseApi, slug, nom, dataUrl) {
   try {
@@ -139,6 +140,20 @@ export default function LecteurConte({
     .map((p) => p.texte)
     .join('\n\n')
 
+  // Pour les Contes Enfants (tailleGrande), le lecteur audio a besoin de cibler les mêmes
+  // <p id="p-N"> que CorpsChapitre rend réellement, pour pouvoir surligner le paragraphe en
+  // cours de narration sans dupliquer le texte affiché ni perdre titres/images/citations.
+  // On réutilise donc EXACTEMENT le même découpage que CorpsChapitre (texteSection, pas
+  // texteAudio) puis on écarte les marqueurs non-narratifs (titres, citations, images,
+  // tableaux, séparateurs) et le formatage inline (**gras**, #gras#, *italique*).
+  const narrationUnites = tailleGrande
+    ? decouperEnParagraphes(texteSection)
+        .map((texte, i) => ({ texte, id: `p-${i}` }))
+        .filter((u) => !/^§(TITRE\d?|CITATION|IMAGE|TABLEAU|SEPARATEUR)§/.test(u.texte))
+        .map((u) => ({ ...u, texte: u.texte.replace(/\*\*(.+?)\*\*/g, '$1').replace(/#(.+?)#/g, '$1').replace(/\*(.+?)\*/g, '$1') }))
+        .filter((u) => u.texte.trim().length > 0)
+    : []
+
   return (
     <div>
       {tableMatieres.length > 1 && (
@@ -195,7 +210,18 @@ export default function LecteurConte({
       )}
 
       <div className="mb-8">
-        <LectureAudio texte={texteAudio} titre={titreAudio} />
+        {tailleGrande ? (
+          <LectureAudioEnfant
+            key={indexEffectif}
+            narrationUnites={narrationUnites}
+            titre={titreAudio}
+            demarrerAuto
+            aSectionSuivante={indexEffectif < sections.length - 1}
+            onSectionTerminee={() => setSectionIndex((i) => Math.min(i + 1, sections.length - 1))}
+          />
+        ) : (
+          <LectureAudio texte={texteAudio} titre={titreAudio} />
+        )}
       </div>
 
       <CorpsChapitre texte={texteSection} tailleGrande={tailleGrande} />
