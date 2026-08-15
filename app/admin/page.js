@@ -340,41 +340,54 @@ export default function AdminPage() {
 
     setLotEnCours(true)
     setLotResultats(null)
+    setMessage('')
     const apercu = []
     const slugsUtilises = new Set((romans || []).map((r) => r.slug))
 
-    for (let i = 0; i < fichiers.length; i++) {
-      const fichier = fichiers[i]
-      setLotProgression({ index: i + 1, total: fichiers.length, nom: fichier.name })
-      try {
-        const resultat = await extraireFichierRoman(fichier)
-        if (!resultat.chapitres || resultat.chapitres.length === 0) {
-          apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: 'Aucun chapitre détecté' })
-          continue
+    try {
+      for (let i = 0; i < fichiers.length; i++) {
+        const fichier = fichiers[i]
+        setLotProgression({ index: i + 1, total: fichiers.length, nom: fichier.name })
+        try {
+          const resultat = await extraireFichierRoman(fichier)
+          if (!resultat.chapitres || resultat.chapitres.length === 0) {
+            apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: 'Aucun chapitre détecté' })
+            continue
+          }
+          const titre = resultat.titre || titreDepuisNomFichier(fichier.name)
+          const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
+          slugsUtilises.add(slug)
+          apercu.push({
+            nom: fichier.name,
+            titre,
+            slug,
+            resume: resultat.resume || '',
+            genre: genreLot || resultat.genre || '',
+            chapitres: resultat.chapitres.map((c) => ({ ...c, publie_le: '' })),
+          })
+        } catch (err) {
+          apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: err?.message || String(err) })
         }
-        const titre = resultat.titre || titreDepuisNomFichier(fichier.name)
-        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
-        slugsUtilises.add(slug)
-        apercu.push({
-          nom: fichier.name,
-          titre,
-          slug,
-          resume: resultat.resume || '',
-          genre: genreLot || resultat.genre || '',
-          chapitres: resultat.chapitres.map((c) => ({ ...c, publie_le: '' })),
-        })
-      } catch (err) {
-        apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: err?.message || String(err) })
       }
-    }
 
-    setLotProgression(null)
-    setLotEnCours(false)
-    setLotPlanifier(false)
-    const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    setLotPlanifDepart(maintenant.toISOString().slice(0, 16))
-    setLotPlanifIntervalle(3)
-    setLotApercu(apercu)
+      if (apercu.length === 0) {
+        setMessage("Aucun fichier n'a pu être lu.")
+        return
+      }
+
+      setLotPlanifier(false)
+      const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+      setLotPlanifDepart(maintenant.toISOString().slice(0, 16))
+      setLotPlanifIntervalle(3)
+      setLotApercu(apercu)
+    } catch (err) {
+      // Filet de sécurité : une erreur inattendue ici ne doit jamais laisser la page muette
+      // sans explication — on l'affiche plutôt que de la laisser disparaître en silence.
+      setMessage(`Erreur pendant la lecture des fichiers : ${err?.message || err}`)
+    } finally {
+      setLotProgression(null)
+      setLotEnCours(false)
+    }
   }
 
   // Applique la même règle que repartirChapitres, mais à chaque roman du lot indépendamment :
@@ -564,6 +577,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+        {message && <p className="text-xs font-mono text-grenat mt-3">{message}</p>}
       </div>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
         {modeChapitreSeul
