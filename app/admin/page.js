@@ -34,9 +34,6 @@ export default function AdminPage() {
   const [lotResultats, setLotResultats] = useState(null)
   const [lotApercu, setLotApercu] = useState(null) // [{ nom, titre, slug, resume, genre, chapitres }], en attente de confirmation
   const [lotPlanifier, setLotPlanifier] = useState(false)
-  const [lotPlanifDepart, setLotPlanifDepart] = useState('')
-  const [lotPlanifIntervalle, setLotPlanifIntervalle] = useState(3)
-  const [lotPlanifPrix, setLotPlanifPrix] = useState(100)
   const [lotRomansPlies, setLotRomansPlies] = useState(new Set())
 
   useEffect(() => {
@@ -357,6 +354,7 @@ export default function AdminPage() {
     setMessage('')
     const apercu = []
     const slugsUtilises = new Set((romans || []).map((r) => r.slug))
+    const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 
     try {
       for (let i = 0; i < fichiers.length; i++) {
@@ -378,6 +376,13 @@ export default function AdminPage() {
             resume: resultat.resume || '',
             genre: genreLot || resultat.genre || '',
             chapitres: resultat.chapitres.map((c) => ({ ...c, publie_le: '' })),
+            // Réglages de planification propres à CE roman — chaque roman du lot peut avoir sa
+            // propre date de départ, son propre rythme et son propre prix, indépendamment des
+            // autres (contrairement à l'ancien comportement où un seul réglage global s'appliquait
+            // à tout le lot).
+            planifDepart: maintenant,
+            planifIntervalle: 3,
+            planifPrix: 100,
           })
         } catch (err) {
           apercu.push({ nom: fichier.name, titre: fichier.name, slug: '', resume: '', genre: '', chapitres: [], erreurExtraction: err?.message || String(err) })
@@ -390,9 +395,6 @@ export default function AdminPage() {
       }
 
       setLotPlanifier(false)
-      const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-      setLotPlanifDepart(maintenant.toISOString().slice(0, 16))
-      setLotPlanifIntervalle(3)
       setLotApercu(apercu)
     } catch (err) {
       // Filet de sécurité : une erreur inattendue ici ne doit jamais laisser la page muette
@@ -404,31 +406,48 @@ export default function AdminPage() {
     }
   }
 
-  // Applique la même règle que repartirChapitres, mais à chaque roman du lot indépendamment :
-  // le chapitre 1 de CHAQUE roman part de `depart`, puis +intervalle jours par chapitre suivant.
-  // Chaque date reste ensuite modifiable au cas par cas, exactement comme pour un import simple.
-  function repartirLot(depart, intervalleJours, prix) {
+  // Applique la même règle que repartirChapitres, mais à UN SEUL roman du lot — chaque roman
+  // garde ses propres réglages (date de départ, rythme, prix), indépendants des autres romans du
+  // même lot. Chaque date/prix reste ensuite modifiable au cas par cas, comme pour un import simple.
+  function repartirLot(indexRoman, depart, intervalleJours, prix) {
     if (!lotApercu || !depart) return
     const base = new Date(depart)
     setLotApercu(
-      lotApercu.map((roman) => ({
-        ...roman,
-        chapitres: roman.chapitres.map((c, i) => {
-          const date = new Date(base.getTime() + i * intervalleJours * 86400000)
-          const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-          return { ...c, publie_le: local.toISOString().slice(0, 16), prix_fcfa: prix }
-        }),
-      }))
+      lotApercu.map((roman, i) => {
+        if (i !== indexRoman) return roman
+        return {
+          ...roman,
+          planifDepart: depart,
+          planifIntervalle: intervalleJours,
+          planifPrix: prix,
+          chapitres: roman.chapitres.map((c, j) => {
+            const date = new Date(base.getTime() + j * intervalleJours * 86400000)
+            const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+            return { ...c, publie_le: local.toISOString().slice(0, 16), prix_fcfa: prix }
+          }),
+        }
+      })
     )
   }
 
   function basculerPlanificationLot(active) {
     setLotPlanifier(active)
     if (active) {
-      repartirLot(lotPlanifDepart, lotPlanifIntervalle, lotPlanifPrix)
+      // Chaque roman reprend ses propres réglages déjà stockés dessus (planifDepart/Intervalle/Prix,
+      // initialisés à l'import du lot) plutôt qu'un réglage unique partagé.
+      lotApercu.forEach((roman, i) => repartirLot(i, roman.planifDepart, roman.planifIntervalle, roman.planifPrix))
     } else {
       setLotApercu(lotApercu.map((roman) => ({ ...roman, chapitres: roman.chapitres.map((c) => ({ ...c, publie_le: '', prix_fcfa: 0 })) })))
     }
+  }
+
+  // Ajuste la date de départ, le rythme ou le prix d'UN SEUL roman du lot, puis répercute
+  // immédiatement le changement sur tous ses chapitres (comme repartirLot).
+  function modifierPlanifRomanLot(indexRoman, champ, valeur) {
+    const roman = lotApercu[indexRoman]
+    if (!roman) return
+    const suivant = { depart: roman.planifDepart, intervalle: roman.planifIntervalle, prix: roman.planifPrix, [champ]: valeur }
+    repartirLot(indexRoman, suivant.depart, suivant.intervalle, suivant.prix)
   }
 
   function modifierDateChapitreLot(indexRoman, numero, valeur) {
@@ -809,45 +828,8 @@ export default function AdminPage() {
                 checked={lotPlanifier}
                 onChange={(e) => basculerPlanificationLot(e.target.checked)}
               />
-              Programmer la sortie des chapitres (appliqué à chaque roman du lot)
+              Programmer la sortie des chapitres (réglable roman par roman ci-dessous)
             </label>
-
-            {lotPlanifier && (
-              <div className="grid grid-cols-3 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
-                  <input
-                    type="datetime-local"
-                    value={lotPlanifDepart}
-                    onChange={(e) => { setLotPlanifDepart(e.target.value); repartirLot(e.target.value, lotPlanifIntervalle, lotPlanifPrix) }}
-                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Puis tous les (jours)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lotPlanifIntervalle}
-                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifIntervalle(v); repartirLot(lotPlanifDepart, v, lotPlanifPrix) }}
-                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Prix/chapitre (FCFA)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={lotPlanifPrix}
-                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifPrix(v); repartirLot(lotPlanifDepart, lotPlanifIntervalle, v) }}
-                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
-                  />
-                </div>
-                <p className="col-span-3 text-[0.68rem] text-papier/35 leading-relaxed">
-                  Même point de départ et même prix pour chaque roman du lot — ajuste ensuite au cas par cas ci-dessous si besoin.
-                </p>
-              </div>
-            )}
 
             <div className="space-y-3 mb-6">
               {lotApercu.map((roman, i) => {
@@ -864,30 +846,65 @@ export default function AdminPage() {
                       <button onClick={() => retirerDuLot(i)} className="text-papier/30 hover:text-grenat text-xs font-mono shrink-0">Retirer</button>
                     </div>
                     {!plie && !roman.erreurExtraction && (
-                      <ul className="space-y-2 mt-3 pt-3 border-t border-ligne">
-                        {roman.chapitres.map((c) => (
-                          <li key={c.numero} className="text-sm text-papier/70">
-                            <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
-                            {lotPlanifier && (
-                              <div className="mt-1 flex gap-2">
-                                <input
-                                  type="datetime-local"
-                                  value={c.publie_le || ''}
-                                  onChange={(e) => modifierDateChapitreLot(i, c.numero, e.target.value)}
-                                  className="flex-1 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
-                                />
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={c.prix_fcfa ?? 0}
-                                  onChange={(e) => modifierPrixChapitreLot(i, c.numero, e.target.value)}
-                                  className="w-24 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
-                                />
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        {lotPlanifier && (
+                          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-ligne">
+                            <div>
+                              <label className="text-[0.6rem] font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
+                              <input
+                                type="datetime-local"
+                                value={roman.planifDepart || ''}
+                                onChange={(e) => modifierPlanifRomanLot(i, 'depart', e.target.value)}
+                                className="w-full bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier text-xs focus:outline-none focus:border-or"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[0.6rem] font-mono uppercase tracking-wide text-papier/40 block mb-1">Tous les (j)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={roman.planifIntervalle}
+                                onChange={(e) => modifierPlanifRomanLot(i, 'intervalle', Number(e.target.value))}
+                                className="w-full bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier text-xs focus:outline-none focus:border-or"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[0.6rem] font-mono uppercase tracking-wide text-papier/40 block mb-1">Prix (FCFA)</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={roman.planifPrix}
+                                onChange={(e) => modifierPlanifRomanLot(i, 'prix', Number(e.target.value))}
+                                className="w-full bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier text-xs focus:outline-none focus:border-or"
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <ul className="space-y-2 mt-3 pt-3 border-t border-ligne">
+                          {roman.chapitres.map((c) => (
+                            <li key={c.numero} className="text-sm text-papier/70">
+                              <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
+                              {lotPlanifier && (
+                                <div className="mt-1 flex gap-2">
+                                  <input
+                                    type="datetime-local"
+                                    value={c.publie_le || ''}
+                                    onChange={(e) => modifierDateChapitreLot(i, c.numero, e.target.value)}
+                                    className="flex-1 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                                  />
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={c.prix_fcfa ?? 0}
+                                    onChange={(e) => modifierPrixChapitreLot(i, c.numero, e.target.value)}
+                                    className="w-24 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                                  />
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
                     )}
                   </div>
                 )
