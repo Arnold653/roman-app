@@ -37,6 +37,12 @@ export default function AdminPage() {
   const [lotPlanifier, setLotPlanifier] = useState(false)
   const [lotRomansPlies, setLotRomansPlies] = useState(new Set())
 
+  // --- Republication d'un roman en brouillon : proposer de reprogrammer une nouvelle Première ---
+  const [republicationOuverte, setRepublicationOuverte] = useState(null) // id du roman
+  const [republicationDepart, setRepublicationDepart] = useState('')
+  const [republicationIntervalle, setRepublicationIntervalle] = useState(3)
+  const [republicationPrix, setRepublicationPrix] = useState(100)
+
   useEffect(() => {
     chargerRomans()
   }, [])
@@ -111,13 +117,52 @@ export default function AdminPage() {
   }
 
   async function basculerStatutRoman(roman) {
-    const nouveauStatut = roman.statut_visibilite === 'publie' ? 'brouillon' : 'publie'
+    if (roman.statut_visibilite === 'publie') {
+      // Dépublier reste un geste instantané, sans conséquence à reprogrammer.
+      const res = await fetch('/api/admin/roman', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: 'brouillon' }),
+      })
+      if (res.ok) chargerRomans()
+      return
+    }
+    // Republier : on ouvre le choix plutôt que de remettre en ligne tel quel sans prévenir —
+    // voir republierTelQuel() et confirmerReplanification() ci-dessous.
+    const maintenant = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    setRepublicationDepart(maintenant.toISOString().slice(0, 16))
+    setRepublicationIntervalle(3)
+    setRepublicationPrix(100)
+    setRepublicationOuverte(roman.id)
+  }
+
+  async function republierTelQuel(roman) {
     const res = await fetch('/api/admin/roman', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: nouveauStatut }),
+      body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: 'publie' }),
     })
-    if (res.ok) chargerRomans()
+    if (res.ok) { setRepublicationOuverte(null); chargerRomans() }
+  }
+
+  // Republie ET reprogramme une nouvelle "Première" complète sur tous les chapitres du roman :
+  // dates étalées à partir de `republicationDepart`, prix d'accès anticipé, notifications
+  // réarmées (un chapitre déjà sorti une première fois doit pouvoir renotifier ses lecteurs à sa
+  // resortie, sinon publierChapitresDus() l'ignorerait en le croyant déjà traité).
+  async function confirmerReplanification(roman) {
+    const res = await fetch('/api/admin/roman', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'replanifier_roman',
+        id: roman.id,
+        depart: republicationDepart,
+        intervalleJours: republicationIntervalle,
+        prix: republicationPrix,
+      }),
+    })
+    if (res.ok) { setRepublicationOuverte(null); chargerRomans() }
+    else setMessage('Erreur lors de la reprogrammation.')
   }
 
   async function supprimerRoman(roman) {
@@ -980,6 +1025,65 @@ export default function AdminPage() {
               </div>
             </div>
             <p className="text-papier/35 text-xs font-mono mb-4">/{roman.slug} — {roman.genre}</p>
+
+            {republicationOuverte === roman.id && (
+              <div className="bg-encreClair border border-or/30 rounded-lg p-4 mb-4 space-y-3">
+                <p className="text-papier/70 text-sm">
+                  Republier « {roman.titre} » — tel quel, ou avec une nouvelle Première programmée (dates étalées, prix d'accès anticipé, notifications réarmées) ?
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
+                    <input
+                      type="datetime-local"
+                      value={republicationDepart}
+                      onChange={(e) => setRepublicationDepart(e.target.value)}
+                      className="w-full bg-encre border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Puis tous les (jours)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={republicationIntervalle}
+                      onChange={(e) => setRepublicationIntervalle(Number(e.target.value))}
+                      className="w-full bg-encre border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Prix/chapitre (FCFA)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={republicationPrix}
+                      onChange={(e) => setRepublicationPrix(Number(e.target.value))}
+                      className="w-full bg-encre border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => confirmerReplanification(roman)}
+                    className="flex-1 bg-or text-encre text-sm font-medium rounded-lg px-3 py-2 hover:brightness-110 transition-all"
+                  >
+                    Reprogrammer une nouvelle Première
+                  </button>
+                  <button
+                    onClick={() => republierTelQuel(roman)}
+                    className="text-papier/60 text-xs font-mono uppercase px-3 py-2 border border-ligne rounded-lg hover:border-papier/40"
+                  >
+                    Republier tel quel
+                  </button>
+                  <button
+                    onClick={() => setRepublicationOuverte(null)}
+                    className="text-papier/40 text-xs font-mono uppercase px-3 py-2 hover:text-papier/60"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
 
             {!plie && (
               <>
