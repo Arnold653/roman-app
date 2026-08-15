@@ -15,8 +15,8 @@ function reconstruire(sections) {
   return { sections: decouperEnSections(tousLesBlocs), tableMatieres }
 }
 
-export default function ModifierLivrePage({ params }) {
-  const [livre, setLivre] = useState(null)
+export default function ModifierConteEnfantPage({ params }) {
+  const [conte, setConte] = useState(null)
   const [sectionIndex, setSectionIndex] = useState(0)
   const [blocs, setBlocs] = useState([])
   const [message, setMessage] = useState('')
@@ -25,23 +25,23 @@ export default function ModifierLivrePage({ params }) {
   useEffect(() => { charger() }, [])
 
   async function charger() {
-    const res = await fetch(`/api/admin/livre?id=${params.id}`)
-    if (!res.ok) { setMessage('Livre introuvable ou accès refusé.'); return }
-    const { livre } = await res.json()
-    setLivre(livre)
-    setBlocs(livre.contenu_extrait?.sections?.[0]?.blocs || [])
+    const res = await fetch(`/api/admin/conte-enfant?id=${params.id}`)
+    if (!res.ok) { setMessage('Conte introuvable ou accès refusé.'); return }
+    const { conte } = await res.json()
+    setConte(conte)
+    setBlocs(conte.contenu_extrait?.sections?.[0]?.blocs || [])
   }
 
   function changerSection(i) {
     enregistrerBlocsLocalement()
     setSectionIndex(i)
-    setBlocs(livre.contenu_extrait.sections[i].blocs)
+    setBlocs(conte.contenu_extrait.sections[i].blocs)
   }
 
-  // Répercute les modifications en cours dans l'objet livre en mémoire (sans sauvegarder en
+  // Répercute les modifications en cours dans l'objet conte en mémoire (sans sauvegarder en
   // base), pour ne pas perdre le travail en cours quand on change de section.
   function enregistrerBlocsLocalement() {
-    setLivre((l) => {
+    setConte((l) => {
       const sections = l.contenu_extrait.sections.map((s, i) => (i === sectionIndex ? { ...s, blocs } : s))
       return { ...l, contenu_extrait: { ...l.contenu_extrait, sections } }
     })
@@ -72,18 +72,18 @@ export default function ModifierLivrePage({ params }) {
   async function sauvegarder() {
     setSauvegarde(true)
     setMessage('')
-    const sections = livre.contenu_extrait.sections.map((s, i) => (i === sectionIndex ? { ...s, blocs } : s))
+    const sections = conte.contenu_extrait.sections.map((s, i) => (i === sectionIndex ? { ...s, blocs } : s))
     const contenuFinal = reconstruire(sections)
 
-    const res = await fetch('/api/admin/livre', {
+    const res = await fetch('/api/admin/conte-enfant', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'editer_contenu', id: livre.id, contenu: contenuFinal }),
+      body: JSON.stringify({ type: 'editer_contenu', id: conte.id, contenu: contenuFinal }),
     })
     setSauvegarde(false)
     if (res.ok) {
       setMessage('Enregistré ✓')
-      setLivre((l) => ({ ...l, contenu_extrait: contenuFinal }))
+      setConte((l) => ({ ...l, contenu_extrait: contenuFinal }))
       setSectionIndex(0)
       setBlocs(contenuFinal.sections[0]?.blocs || [])
     } else {
@@ -91,25 +91,25 @@ export default function ModifierLivrePage({ params }) {
     }
   }
 
-  if (message && !livre) return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">{message}</div>
-  if (!livre) return <div className="px-6 py-24 text-center text-papier/40 font-mono text-sm">Chargement...</div>
-  if (!livre.contenu_extrait) {
+  if (message && !conte) return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">{message}</div>
+  if (!conte) return <div className="px-6 py-24 text-center text-papier/40 font-mono text-sm">Chargement...</div>
+  if (!conte.contenu_extrait) {
     return (
       <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">
-        Ce livre n'a pas encore été extrait — rien à modifier pour l'instant.
-        <br /><a href="/admin/livres" className="text-or">← Retour</a>
+        Ce conte n'a pas encore été extrait — rien à modifier pour l'instant.
+        <br /><a href="/admin/contes-enfants" className="text-or">← Retour</a>
       </div>
     )
   }
 
-  const sections = livre.contenu_extrait.sections
+  const sections = conte.contenu_extrait.sections
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
       <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
-      <h1 className="font-display text-3xl text-papier mb-2">Modifier « {livre.titre} »</h1>
+      <h1 className="font-display text-3xl text-papier mb-2">Modifier « {conte.titre} »</h1>
       <p className="text-papier/40 text-sm mb-8">
-        <a href="/admin/livres" className="text-or hover:brightness-125">← Retour aux livres</a>
+        <a href="/admin/contes-enfants" className="text-or hover:brightness-125">← Retour aux contes pour enfants</a>
       </p>
 
       <div className="flex flex-wrap gap-2 mb-8">

@@ -111,6 +111,18 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: true })
   }
 
+  if (body.type === 'metadonnees') {
+    const { error } = await admin
+      .from('contes_africains')
+      .update({
+        titre: body.titre, auteur: body.auteur || null, description: body.description || null, genre: body.genre || null,
+        region: body.region || null, genere_par_ia: body.genere_par_ia ?? true, verifie_par: body.verifie_par || null,
+      })
+      .eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
   if (body.type === 'editer_contenu') {
     const { error } = await admin.from('contes_africains').update({ contenu_extrait: body.contenu }).eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })

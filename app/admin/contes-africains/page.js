@@ -41,6 +41,43 @@ export default function AdminContesAfricainsPage() {
   const [fichier, setFichier] = useState(null)
   const [apercu, setApercu] = useState(null)
   const [contesPlies, setContesPlies] = useState(new Set())
+  const [edition, setEdition] = useState(null) // id du conte en cours d'édition des infos
+
+  function editer(conte) {
+    setEdition(conte.id)
+    setApercu(null)
+    setFichier(null)
+    setForm({
+      titre: conte.titre, slug: conte.slug, auteur: conte.auteur || '', description: conte.description || '',
+      genre: conte.genre || '', region: conte.region || '', verifie_par: conte.verifie_par || '', genere_par_ia: conte.genere_par_ia ?? true,
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function annulerEdition() {
+    setEdition(null)
+    setForm({ titre: '', slug: '', auteur: '', description: '', genre: '', region: '', verifie_par: '', genere_par_ia: true })
+    setMessage('')
+  }
+
+  async function enregistrerMetadonnees() {
+    setLoading(true)
+    setMessage('')
+    const res = await fetch('/api/admin/conte-africain', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'metadonnees', id: edition, ...form }),
+    })
+    const resultat = await res.json()
+    setLoading(false)
+    if (!res.ok) {
+      setMessage(`Erreur : ${resultat.error}`)
+    } else {
+      setMessage('Modifications enregistrées ✓')
+      annulerEdition()
+      charger()
+    }
+  }
 
   function basculerPliConte(id) {
     setContesPlies((s) => {
@@ -151,15 +188,15 @@ export default function AdminContesAfricainsPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text') => (
+  const champ = (label, field, type = 'text', readOnly = false) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
-        <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4}
-          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#e69742] transition-colors" />
+        <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4} readOnly={readOnly}
+          className={`w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#e69742] transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} />
       ) : (
-        <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)}
-          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors" />
+        <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)} readOnly={readOnly}
+          className={`w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} />
       )}
     </div>
   )
@@ -167,20 +204,23 @@ export default function AdminContesAfricainsPage() {
   return (
     <div className="px-6 pt-16 pb-24 max-w-xl mx-auto lever">
       <p className="text-[#e69742] text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
-      <h1 className="font-display text-4xl text-papier mb-2">Publier un conte africain</h1>
+      <h1 className="font-display text-4xl text-papier mb-2">{edition ? 'Modifier les infos du conte' : 'Publier un conte africain'}</h1>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
-        Un conte ou une histoire traditionnelle, livré en un seul fichier (PDF, Markdown ou texte).
+        {edition
+          ? "Le fichier et le texte ne changent pas ici — seules les informations. Pour le texte, utilise \"Modifier le texte\" depuis la liste."
+          : 'Un conte ou une histoire traditionnelle, livré en un seul fichier (PDF, Markdown ou texte).'}
         <br /><a href="/admin" className="text-[#e69742] hover:brightness-125">← Retour à l'admin des romans</a>
       </p>
 
       <div className="space-y-6">
         {champ('Titre du conte', 'titre')}
-        {champ('Slug (identifiant dans l\'URL)', 'slug')}
+        {champ('Slug (identifiant dans l\'URL)', 'slug', 'text', !!edition)}
         {champ('Auteur / conteur (optionnel)', 'auteur')}
         {champ('Description / résumé', 'description', 'textarea')}
         {champ('Genre (optionnel)', 'genre')}
         {champ('Région / origine (ex. Bénin, Sénégal, Mali...)', 'region')}
 
+        {!edition && (
         <div>
           <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
             Fichier (PDF, .md ou .txt)
@@ -191,6 +231,7 @@ export default function AdminContesAfricainsPage() {
             className="w-full text-papier text-sm"
           />
         </div>
+        )}
 
         <div className="border-t border-ligne pt-5">
           <p className="text-[#e69742] text-xs font-mono uppercase tracking-widest mb-4">Transparence</p>
@@ -201,7 +242,18 @@ export default function AdminContesAfricainsPage() {
           {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
         </div>
 
-        {!apercu ? (
+        {edition ? (
+          <div className="flex gap-3">
+            <button type="button" onClick={annulerEdition} disabled={loading}
+              className="flex-1 bg-encre border border-ligne text-papier/70 text-sm rounded-lg px-3 py-3 hover:border-papier/30 transition-colors disabled:opacity-50">
+              Annuler
+            </button>
+            <button type="button" onClick={enregistrerMetadonnees} disabled={loading}
+              className="flex-1 bg-[#e69742] text-encre text-sm font-medium rounded-lg px-3 py-3 hover:brightness-110 transition-all disabled:opacity-50">
+              {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+            </button>
+          </div>
+        ) : !apercu ? (
           <button
             type="button" onClick={extraireEtApercevoir} disabled={loading || !fichier}
             className="w-full bg-encreClair border border-[#e69742]/40 text-[#e69742] font-medium rounded-lg px-3 py-3.5 hover:bg-[#e69742]/10 transition-all disabled:opacity-50"
@@ -283,6 +335,8 @@ export default function AdminContesAfricainsPage() {
               >
                 Aperçu ↗
               </a>
+              <a href={`/admin/contes-africains/${c.id}/modifier`} className="text-xs font-mono uppercase text-papier/40 hover:text-[#e69742] transition-colors">Modifier le texte</a>
+              <button onClick={() => editer(c)} className="text-xs font-mono uppercase text-papier/40 hover:text-[#e69742] transition-colors">Modifier les infos</button>
               <button
                 onClick={() => viderCache(c)}
                 disabled={!c.contenu_extrait}
