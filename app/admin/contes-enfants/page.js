@@ -481,6 +481,7 @@ export default function AdminContesEnfantsPage() {
               >
                 Aperçu ↗
               </a>
+              <a href={`/admin/contes-enfants/${c.id}/modifier`} className="text-xs font-mono uppercase text-papier/40 hover:text-[#ffd166] transition-colors">Modifier le texte</a>
               <button
                 onClick={() => viderCache(c)}
                 disabled={!c.contenu_extrait}

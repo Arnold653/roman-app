@@ -481,6 +481,7 @@ export default function AdminContesAfricainsPage() {
               >
                 Aperçu ↗
               </a>
+              <a href={`/admin/contes-africains/${c.id}/modifier`} className="text-xs font-mono uppercase text-papier/40 hover:text-[#e69742] transition-colors">Modifier le texte</a>
               <button
                 onClick={() => viderCache(c)}
                 disabled={!c.contenu_extrait}
