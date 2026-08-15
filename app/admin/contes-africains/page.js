@@ -6,6 +6,7 @@ import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { GENRES_CONTES_AFRICAINS } from '@/lib/genres'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
@@ -248,12 +249,20 @@ export default function AdminContesAfricainsPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text') => (
+  const champ = (label, field, type = 'text', options = []) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
         <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#e69742] transition-colors" />
+      ) : type === 'select' ? (
+        <select value={form[field]} onChange={(e) => update(field, e.target.value)}
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors">
+          <option value="">— Choisir un genre —</option>
+          {options.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
       ) : (
         <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors" />
@@ -275,7 +284,7 @@ export default function AdminContesAfricainsPage() {
         {champ('Slug (identifiant dans l\'URL)', 'slug')}
         {champ('Auteur / conteur (optionnel)', 'auteur')}
         {champ('Description / résumé', 'description', 'textarea')}
-        {champ('Genre (optionnel)', 'genre')}
+        {champ('Genre (optionnel)', 'genre', 'select', GENRES_CONTES_AFRICAINS)}
         {champ('Région / origine (ex. Bénin, Sénégal, Mali...)', 'region')}
 
         <div>
@@ -302,11 +311,15 @@ export default function AdminContesAfricainsPage() {
           {fichiersLot.length > 0 && (
             <p className="text-papier/50 text-xs font-mono mb-3">{fichiersLot.length} fichier(s) sélectionné(s)</p>
           )}
-          <input
-            type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
-            placeholder="Genre pour tout le lot (optionnel)"
+          <select
+            value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
             className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#e69742] transition-colors"
-          />
+          >
+            <option value="">Genre pour tout le lot (optionnel)</option>
+            {GENRES_CONTES_AFRICAINS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
           <input
             type="text" value={regionLot} onChange={(e) => setRegionLot(e.target.value)}
             placeholder="Région / origine pour tout le lot (optionnel)"

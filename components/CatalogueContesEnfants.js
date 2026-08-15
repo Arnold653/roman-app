@@ -67,6 +67,7 @@ function CarteConte({ conte, vedette = false }) {
 export default function CatalogueContesEnfants({ contes }) {
   const [recherche, setRecherche] = useState('')
   const [ageActif, setAgeActif] = useState(null)
+  const [genreActif, setGenreActif] = useState(null)
   const [tri, setTri] = useState('recents') // 'recents' | 'lus' | 'encours'
 
   const tranches = useMemo(
@@ -74,16 +75,22 @@ export default function CatalogueContesEnfants({ contes }) {
     [contes]
   )
 
+  const genres = useMemo(
+    () => [...new Set(contes.map((c) => c.genre).filter(Boolean))].sort(),
+    [contes]
+  )
+
   const filtres = useMemo(() => {
     let liste = contes.filter((c) => c.titre.toLowerCase().includes(recherche.toLowerCase()))
     if (ageActif) liste = liste.filter((c) => c.tranche_age === ageActif)
+    if (genreActif) liste = liste.filter((c) => c.genre === genreActif)
     if (tri === 'lus') liste = [...liste].sort((a, b) => b.nbLecteurs - a.nbLecteurs)
     else if (tri === 'encours') liste = liste.filter((c) => c.sectionEnCours)
     else liste = [...liste].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     return liste
-  }, [contes, recherche, ageActif, tri])
+  }, [contes, recherche, ageActif, genreActif, tri])
 
-  const vedette = !recherche && !ageActif && tri === 'recents'
+  const vedette = !recherche && !ageActif && !genreActif && tri === 'recents'
     ? [...contes].sort((a, b) => b.nbLecteurs - a.nbLecteurs)[0]
     : null
   const vedetteValide = vedette && vedette.nbLecteurs > 0 ? vedette : null
@@ -140,6 +147,26 @@ export default function CatalogueContesEnfants({ contes }) {
               className={`rounded-full px-3 py-1.5 border transition-colors ${ageActif === t ? 'border-[#ffd166] text-[#ffd166]' : 'border-ligne text-papier/45 hover:border-papier/30'}`}
             >
               {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {genres.length > 1 && (
+        <div className="flex gap-2 flex-wrap mb-12 font-mono text-xs uppercase tracking-wide">
+          <button
+            onClick={() => setGenreActif(null)}
+            className={`rounded-full px-3 py-1.5 border transition-colors ${!genreActif ? 'border-[#ffd166] text-[#ffd166]' : 'border-ligne text-papier/45 hover:border-papier/30'}`}
+          >
+            Tous genres
+          </button>
+          {genres.map((g) => (
+            <button
+              key={g}
+              onClick={() => setGenreActif(g)}
+              className={`rounded-full px-3 py-1.5 border transition-colors ${genreActif === g ? 'border-[#ffd166] text-[#ffd166]' : 'border-ligne text-papier/45 hover:border-papier/30'}`}
+            >
+              {g}
             </button>
           ))}
         </div>

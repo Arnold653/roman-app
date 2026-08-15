@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { parserMarkdownRoman } from '@/lib/parseMd'
 import { titreDepuisNomFichier, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { GENRES_ROMANS } from '@/lib/genres'
 
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
@@ -528,7 +529,7 @@ export default function AdminPage() {
     chargerRomans()
   }
 
-  const champ = (label, field, type = 'text') => (
+  const champ = (label, field, type = 'text', options = []) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
@@ -538,6 +539,17 @@ export default function AdminPage() {
           rows={8}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-or transition-colors"
         />
+      ) : type === 'select' ? (
+        <select
+          value={form[field]}
+          onChange={(e) => update(field, e.target.value)}
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
+        >
+          <option value="">— Choisir un genre —</option>
+          {options.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
       ) : (
         <input
           type={type}
@@ -606,12 +618,16 @@ export default function AdminPage() {
         <p className="text-papier/70 text-sm mb-3">
           Import multiple — un fichier = un roman distinct, créé en brouillon.
         </p>
-        <input
-          type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
-          placeholder="Genre pour tout le lot (optionnel, sinon détecté par fichier)"
+        <select
+          value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
           disabled={lotEnCours}
           className="w-full bg-encre border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors disabled:opacity-50"
-        />
+        >
+          <option value="">Genre pour tout le lot (optionnel, sinon détecté par fichier)</option>
+          {GENRES_ROMANS.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
         {lotResultats && (
           <div className="space-y-1.5 mt-3">
             {lotResultats.map((r, i) => (
@@ -638,7 +654,7 @@ export default function AdminPage() {
             {champ('Titre du roman', 'titre')}
             {champ("Slug (identifiant dans l'URL, ex: le-dernier-refuge)", 'slug')}
             {champ('Résumé court', 'resume', 'textarea')}
-            {champ('Genre (libre : thriller, romance, aventure...)', 'genre')}
+            {champ('Genre', 'genre', 'select', GENRES_ROMANS)}
 
             <label className="flex items-center gap-2 text-sm text-papier/70">
               <input

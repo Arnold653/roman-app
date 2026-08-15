@@ -6,6 +6,7 @@ import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { GENRES_LIVRES } from '@/lib/genres'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
@@ -248,12 +249,20 @@ export default function AdminLivresPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text') => (
+  const champ = (label, field, type = 'text', options = []) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
         <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-or transition-colors" />
+      ) : type === 'select' ? (
+        <select value={form[field]} onChange={(e) => update(field, e.target.value)}
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors">
+          <option value="">— Choisir un genre —</option>
+          {options.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
       ) : (
         <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors" />
@@ -275,7 +284,7 @@ export default function AdminLivresPage() {
         {champ('Slug (identifiant dans l\'URL)', 'slug')}
         {champ('Auteur (optionnel)', 'auteur')}
         {champ('Description / résumé', 'description', 'textarea')}
-        {champ('Genre', 'genre')}
+        {champ('Genre', 'genre', 'select', GENRES_LIVRES)}
 
         <div>
           <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
@@ -302,11 +311,15 @@ export default function AdminLivresPage() {
           {fichiersLot.length > 0 && (
             <p className="text-papier/50 text-xs font-mono mb-3">{fichiersLot.length} fichier(s) sélectionné(s)</p>
           )}
-          <input
-            type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
-            placeholder="Genre pour tout le lot (optionnel)"
+          <select
+            value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
             className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-or transition-colors"
-          />
+          >
+            <option value="">Genre pour tout le lot (optionnel)</option>
+            {GENRES_LIVRES.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
           <button
             type="button" onClick={importerLot} disabled={lotEnCours || fichiersLot.length === 0}
             className="w-full bg-encreClair border border-or/40 text-or font-medium rounded-lg px-3 py-3.5 hover:bg-or/10 transition-all disabled:opacity-50"

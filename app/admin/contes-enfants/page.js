@@ -6,6 +6,7 @@ import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { GENRES_CONTES_ENFANTS } from '@/lib/genres'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
@@ -248,12 +249,20 @@ export default function AdminContesEnfantsPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text') => (
+  const champ = (label, field, type = 'text', options = []) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
         <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#ffd166] transition-colors" />
+      ) : type === 'select' ? (
+        <select value={form[field]} onChange={(e) => update(field, e.target.value)}
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#ffd166] transition-colors">
+          <option value="">— Choisir un genre —</option>
+          {options.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
       ) : (
         <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#ffd166] transition-colors" />
@@ -275,7 +284,7 @@ export default function AdminContesEnfantsPage() {
         {champ('Slug (identifiant dans l\'URL)', 'slug')}
         {champ('Auteur / illustrateur (optionnel)', 'auteur')}
         {champ('Description / résumé', 'description', 'textarea')}
-        {champ('Genre (optionnel)', 'genre')}
+        {champ('Genre (optionnel)', 'genre', 'select', GENRES_CONTES_ENFANTS)}
         {champ('Tranche d\'âge (ex. 3-5 ans, 6-8 ans...)', 'tranche_age')}
 
         <div>
@@ -302,11 +311,15 @@ export default function AdminContesEnfantsPage() {
           {fichiersLot.length > 0 && (
             <p className="text-papier/50 text-xs font-mono mb-3">{fichiersLot.length} fichier(s) sélectionné(s)</p>
           )}
-          <input
-            type="text" value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
-            placeholder="Genre pour tout le lot (optionnel)"
+          <select
+            value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
             className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#ffd166] transition-colors"
-          />
+          >
+            <option value="">Genre pour tout le lot (optionnel)</option>
+            {GENRES_CONTES_ENFANTS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
           <input
             type="text" value={trancheAgeLot} onChange={(e) => setTrancheAgeLot(e.target.value)}
             placeholder="Tranche d'âge pour tout le lot (ex. 3-6 ans)"
