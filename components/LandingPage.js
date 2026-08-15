@@ -119,7 +119,7 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
                 href={`/login?suite=${HREF_PAR_TYPE[item.type]}/${item.slug}`}
                 className="group shrink-0 w-[150px]"
               >
-                <div className="w-full aspect-[3/4.4] rounded-lg overflow-hidden border border-ligne group-hover:border-or/40 transition-colors">
+                <div className="relative w-full aspect-[3/4.4] rounded-lg overflow-hidden border border-ligne group-hover:border-or/40 transition-colors">
                   <CouvertureVitrine item={item} />
                 </div>
                 <p className="font-mono text-[0.6rem] uppercase tracking-widest text-or/70 mt-2.5">
