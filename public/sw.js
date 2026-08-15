@@ -13,7 +13,16 @@ function estPageDeLecture(url) {
   return PREFIXES_LECTURE.some((prefixe) => url.pathname.startsWith(prefixe))
 }
 
-self.addEventListener('install', () => {
+self.addEventListener('install', (event) => {
+  // Sans ça, caches.match('/hors-ligne') dans le fetch handler ne trouve rien tant que cette
+  // page n'a jamais été visitée en ligne — et le repli échoue à son tour, laissant le navigateur
+  // afficher sa propre page d'erreur brute (ERR_FAILED) au lieu de la page de repli voulue.
+  event.waitUntil(
+    caches
+      .open(CACHE_PAGES)
+      .then((cache) => cache.add('/hors-ligne'))
+      .catch(() => {})
+  )
   self.skipWaiting()
 })
 

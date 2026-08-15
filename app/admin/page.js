@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [planifierImport, setPlanifierImport] = useState(false)
   const [planifDepart, setPlanifDepart] = useState('')
   const [planifIntervalle, setPlanifIntervalle] = useState(3)
+  const [planifPrix, setPlanifPrix] = useState(100)
   const inputFichierRef = useRef(null)
   const inputLotRef = useRef(null)
 
@@ -34,6 +35,8 @@ export default function AdminPage() {
   const [lotApercu, setLotApercu] = useState(null) // [{ nom, titre, slug, resume, genre, chapitres }], en attente de confirmation
   const [lotPlanifier, setLotPlanifier] = useState(false)
   const [lotPlanifDepart, setLotPlanifDepart] = useState('')
+  const [lotPlanifIntervalle, setLotPlanifIntervalle] = useState(3)
+  const [lotPlanifPrix, setLotPlanifPrix] = useState(100)
   const [lotRomansPlies, setLotRomansPlies] = useState(new Set())
 
   useEffect(() => {
@@ -235,13 +238,13 @@ export default function AdminPage() {
   // Étale la sortie des chapitres à partir de `depart`, un chapitre tous les `intervalleJours` jours
   // (chapitre 1 = depart, chapitre 2 = depart + intervalle, etc.). Chaque date reste modifiable
   // ensuite au cas par cas dans l'aperçu, pour organiser une « première » particulière par exemple.
-  function repartirChapitres(depart, intervalleJours) {
+  function repartirChapitres(depart, intervalleJours, prix) {
     if (!important || !depart) return
     const base = new Date(depart)
     const chapitres = important.chapitres.map((c, i) => {
       const date = new Date(base.getTime() + i * intervalleJours * 86400000)
       const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-      return { ...c, publie_le: local.toISOString().slice(0, 16) }
+      return { ...c, publie_le: local.toISOString().slice(0, 16), prix_fcfa: prix }
     })
     setImportant({ ...important, chapitres })
   }
@@ -249,9 +252,12 @@ export default function AdminPage() {
   function basculerPlanification(active) {
     setPlanifierImport(active)
     if (active) {
-      repartirChapitres(planifDepart, planifIntervalle)
+      repartirChapitres(planifDepart, planifIntervalle, planifPrix)
     } else {
-      setImportant({ ...important, chapitres: important.chapitres.map((c) => ({ ...c, publie_le: '' })) })
+      // Sans prix ni date, un chapitre programmé resterait invisible avant sa sortie (voir
+      // app/roman/[slug]/page.js) : on remet aussi prix_fcfa à 0 pour repartir sur un import
+      // gratuit et simple, cohérent avec la case décochée.
+      setImportant({ ...important, chapitres: important.chapitres.map((c) => ({ ...c, publie_le: '', prix_fcfa: 0 })) })
     }
   }
 
@@ -259,6 +265,13 @@ export default function AdminPage() {
     setImportant({
       ...important,
       chapitres: important.chapitres.map((c) => (c.numero === numero ? { ...c, publie_le: valeur } : c)),
+    })
+  }
+
+  function modifierPrixChapitre(numero, valeur) {
+    setImportant({
+      ...important,
+      chapitres: important.chapitres.map((c) => (c.numero === numero ? { ...c, prix_fcfa: Number(valeur) || 0 } : c)),
     })
   }
 
@@ -286,6 +299,7 @@ export default function AdminPage() {
           contenu: chap.contenu,
           citation_fin: chap.citation_fin,
           publie_le: chap.publie_le || undefined,
+          prix_fcfa: chap.prix_fcfa || 0,
         }),
       })
       const data = await res.json()
@@ -393,7 +407,7 @@ export default function AdminPage() {
   // Applique la même règle que repartirChapitres, mais à chaque roman du lot indépendamment :
   // le chapitre 1 de CHAQUE roman part de `depart`, puis +intervalle jours par chapitre suivant.
   // Chaque date reste ensuite modifiable au cas par cas, exactement comme pour un import simple.
-  function repartirLot(depart, intervalleJours) {
+  function repartirLot(depart, intervalleJours, prix) {
     if (!lotApercu || !depart) return
     const base = new Date(depart)
     setLotApercu(
@@ -402,7 +416,7 @@ export default function AdminPage() {
         chapitres: roman.chapitres.map((c, i) => {
           const date = new Date(base.getTime() + i * intervalleJours * 86400000)
           const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-          return { ...c, publie_le: local.toISOString().slice(0, 16) }
+          return { ...c, publie_le: local.toISOString().slice(0, 16), prix_fcfa: prix }
         }),
       }))
     )
@@ -411,9 +425,9 @@ export default function AdminPage() {
   function basculerPlanificationLot(active) {
     setLotPlanifier(active)
     if (active) {
-      repartirLot(lotPlanifDepart, lotPlanifIntervalle)
+      repartirLot(lotPlanifDepart, lotPlanifIntervalle, lotPlanifPrix)
     } else {
-      setLotApercu(lotApercu.map((roman) => ({ ...roman, chapitres: roman.chapitres.map((c) => ({ ...c, publie_le: '' })) })))
+      setLotApercu(lotApercu.map((roman) => ({ ...roman, chapitres: roman.chapitres.map((c) => ({ ...c, publie_le: '', prix_fcfa: 0 })) })))
     }
   }
 
@@ -423,6 +437,16 @@ export default function AdminPage() {
         i !== indexRoman
           ? roman
           : { ...roman, chapitres: roman.chapitres.map((c) => (c.numero === numero ? { ...c, publie_le: valeur } : c)) }
+      )
+    )
+  }
+
+  function modifierPrixChapitreLot(indexRoman, numero, valeur) {
+    setLotApercu(
+      lotApercu.map((roman, i) =>
+        i !== indexRoman
+          ? roman
+          : { ...roman, chapitres: roman.chapitres.map((c) => (c.numero === numero ? { ...c, prix_fcfa: Number(valeur) || 0 } : c)) }
       )
     )
   }
@@ -465,6 +489,7 @@ export default function AdminPage() {
             contenu: chap.contenu,
             citation_fin: chap.citation_fin,
             publie_le: chap.publie_le || undefined,
+            prix_fcfa: chap.prix_fcfa || 0,
           }),
         })
         const data = await res.json()
@@ -699,13 +724,13 @@ export default function AdminPage() {
             </label>
 
             {planifierImport && (
-              <div className="grid grid-cols-2 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
+              <div className="grid grid-cols-3 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
                 <div>
                   <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
                   <input
                     type="datetime-local"
                     value={planifDepart}
-                    onChange={(e) => { setPlanifDepart(e.target.value); repartirChapitres(e.target.value, planifIntervalle) }}
+                    onChange={(e) => { setPlanifDepart(e.target.value); repartirChapitres(e.target.value, planifIntervalle, planifPrix) }}
                     className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
                   />
                 </div>
@@ -715,10 +740,23 @@ export default function AdminPage() {
                     type="number"
                     min="0"
                     value={planifIntervalle}
-                    onChange={(e) => { const v = Number(e.target.value); setPlanifIntervalle(v); repartirChapitres(planifDepart, v) }}
+                    onChange={(e) => { const v = Number(e.target.value); setPlanifIntervalle(v); repartirChapitres(planifDepart, v, planifPrix) }}
                     className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
                   />
                 </div>
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Prix/chapitre (FCFA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={planifPrix}
+                    onChange={(e) => { const v = Number(e.target.value); setPlanifPrix(v); repartirChapitres(planifDepart, planifIntervalle, v) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+                <p className="col-span-3 text-papier/40 text-[0.65rem] leading-relaxed">
+                  Un chapitre programmé sans prix reste invisible avant sa sortie — c'est ce prix qui fait apparaître le bouton "Débloquer en avant-première".
+                </p>
               </div>
             )}
 
@@ -729,12 +767,21 @@ export default function AdminPage() {
                     <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
                   </div>
                   {planifierImport && (
-                    <input
-                      type="datetime-local"
-                      value={c.publie_le || ''}
-                      onChange={(e) => modifierDateChapitre(c.numero, e.target.value)}
-                      className="mt-1 w-full bg-encreClair border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
-                    />
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        type="datetime-local"
+                        value={c.publie_le || ''}
+                        onChange={(e) => modifierDateChapitre(c.numero, e.target.value)}
+                        className="flex-1 bg-encreClair border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        value={c.prix_fcfa ?? 0}
+                        onChange={(e) => modifierPrixChapitre(c.numero, e.target.value)}
+                        className="w-24 bg-encreClair border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                      />
+                    </div>
                   )}
                 </li>
               ))}
@@ -766,13 +813,13 @@ export default function AdminPage() {
             </label>
 
             {lotPlanifier && (
-              <div className="grid grid-cols-2 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
+              <div className="grid grid-cols-3 gap-3 mb-4 bg-encre/40 border border-ligne rounded-lg p-3">
                 <div>
                   <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">1ᵉʳ chapitre le</label>
                   <input
                     type="datetime-local"
                     value={lotPlanifDepart}
-                    onChange={(e) => { setLotPlanifDepart(e.target.value); repartirLot(e.target.value, lotPlanifIntervalle) }}
+                    onChange={(e) => { setLotPlanifDepart(e.target.value); repartirLot(e.target.value, lotPlanifIntervalle, lotPlanifPrix) }}
                     className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
                   />
                 </div>
@@ -782,12 +829,22 @@ export default function AdminPage() {
                     type="number"
                     min="0"
                     value={lotPlanifIntervalle}
-                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifIntervalle(v); repartirLot(lotPlanifDepart, v) }}
+                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifIntervalle(v); repartirLot(lotPlanifDepart, v, lotPlanifPrix) }}
                     className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
                   />
                 </div>
-                <p className="col-span-2 text-[0.68rem] text-papier/35 leading-relaxed">
-                  Même point de départ pour chaque roman du lot — ajuste ensuite au cas par cas ci-dessous si tu veux les décaler entre eux.
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-1">Prix/chapitre (FCFA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={lotPlanifPrix}
+                    onChange={(e) => { const v = Number(e.target.value); setLotPlanifPrix(v); repartirLot(lotPlanifDepart, lotPlanifIntervalle, v) }}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-2 py-2 text-papier text-xs focus:outline-none focus:border-or"
+                  />
+                </div>
+                <p className="col-span-3 text-[0.68rem] text-papier/35 leading-relaxed">
+                  Même point de départ et même prix pour chaque roman du lot — ajuste ensuite au cas par cas ci-dessous si besoin.
                 </p>
               </div>
             )}
@@ -812,12 +869,21 @@ export default function AdminPage() {
                           <li key={c.numero} className="text-sm text-papier/70">
                             <span>Ch. {c.numero} {c.titre && `— ${c.titre}`}</span>
                             {lotPlanifier && (
-                              <input
-                                type="datetime-local"
-                                value={c.publie_le || ''}
-                                onChange={(e) => modifierDateChapitreLot(i, c.numero, e.target.value)}
-                                className="mt-1 w-full bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
-                              />
+                              <div className="mt-1 flex gap-2">
+                                <input
+                                  type="datetime-local"
+                                  value={c.publie_le || ''}
+                                  onChange={(e) => modifierDateChapitreLot(i, c.numero, e.target.value)}
+                                  className="flex-1 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={c.prix_fcfa ?? 0}
+                                  onChange={(e) => modifierPrixChapitreLot(i, c.numero, e.target.value)}
+                                  className="w-24 bg-encre border border-ligne rounded-lg px-2 py-1.5 text-papier/80 text-xs focus:outline-none focus:border-or"
+                                />
+                              </div>
                             )}
                           </li>
                         ))}
