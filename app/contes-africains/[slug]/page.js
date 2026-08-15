@@ -4,6 +4,7 @@ import BadgeTransparence from '@/components/BadgeTransparence'
 import LecteurConte from '@/components/LecteurConte'
 import BoutonDeblocage from '@/components/BoutonDeblocage'
 import BoutonPourboire from '@/components/BoutonPourboire'
+import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 
 export default async function ConteAfricainDetailPage({ params }) {
   const supabase = createClient()
@@ -53,6 +54,7 @@ export default async function ConteAfricainDetailPage({ params }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
+      <CachePourHorsLigne />
       {conte.statut !== 'publie' && (
         <p className="font-mono text-[0.65rem] uppercase tracking-widest text-grenat border border-grenat/40 rounded-full px-2.5 py-1 inline-block mb-4">
           Brouillon — visible pour toi seul

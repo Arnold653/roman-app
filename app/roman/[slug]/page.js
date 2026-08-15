@@ -9,6 +9,7 @@ import SuiviLecture from '@/components/SuiviLecture'
 import LectureAudio from '@/components/LectureAudio'
 import BadgeTransparence from '@/components/BadgeTransparence'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
+import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -152,6 +153,7 @@ export default async function RomanPage({ params, searchParams }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto">
+      <CachePourHorsLigne />
       {roman.statut_visibilite !== 'publie' && (
         <p className="font-mono text-[0.65rem] uppercase tracking-widest text-grenat border border-grenat/40 rounded-full px-2.5 py-1 inline-block mb-4">
           Brouillon — visible pour toi seul

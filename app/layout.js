@@ -2,6 +2,8 @@ import './globals.css'
 import SiteHeader from '@/components/SiteHeader'
 import TourAccueil from '@/components/TourAccueil'
 import LienCompteFooter from '@/components/LienCompteFooter'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import BandeauHorsLigne from '@/components/BandeauHorsLigne'
 
 export const metadata = {
   title: 'Encre — lire, discuter, partager',
@@ -18,6 +20,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <body className="font-body min-h-screen flex flex-col">
+        <ServiceWorkerRegister />
+        <BandeauHorsLigne />
         <SiteHeader />
         <TourAccueil />
 
