@@ -67,6 +67,40 @@ export async function PATCH(request) {
     return NextResponse.json({ ok: true })
   }
 
+  if (body.type === 'replanifier_roman') {
+    // Republication avec une nouvelle "Première" complète : réétale les chapitres à partir de
+    // `depart` (même logique que repartirChapitres() côté import), remet un prix d'accès
+    // anticipé, et réarme `notifie` à false pour que publierChapitresDus() renotifie les lecteurs
+    // au moment voulu — sans ça, un chapitre déjà sorti une première fois resterait silencieux.
+    const { data: chapitres, error: erreurLecture } = await admin
+      .from('chapitres')
+      .select('id, numero')
+      .eq('roman_id', body.id)
+      .order('numero', { ascending: true })
+    if (erreurLecture) return NextResponse.json({ error: erreurLecture.message }, { status: 400 })
+
+    const base = new Date(body.depart)
+    const intervalleJours = Number(body.intervalleJours) || 0
+    const prix = Number(body.prix) || 0
+
+    for (let i = 0; i < (chapitres || []).length; i++) {
+      const publieLe = new Date(base.getTime() + i * intervalleJours * 86400000)
+      const { error: erreurMaj } = await admin
+        .from('chapitres')
+        .update({ publie_le: publieLe.toISOString(), prix_fcfa: prix, notifie: false })
+        .eq('id', chapitres[i].id)
+      if (erreurMaj) return NextResponse.json({ error: erreurMaj.message }, { status: 400 })
+    }
+
+    const { error: erreurStatut } = await admin
+      .from('romans')
+      .update({ statut_visibilite: 'publie' })
+      .eq('id', body.id)
+    if (erreurStatut) return NextResponse.json({ error: erreurStatut.message }, { status: 400 })
+
+    return NextResponse.json({ ok: true, chapitres: chapitres?.length || 0 })
+  }
+
   if (body.type === 'roman') {
     const { error } = await admin
       .from('romans')
