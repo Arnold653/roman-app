@@ -258,7 +258,38 @@ export default async function HomePage() {
           </div>
         </div>
       ) : (
-        nouveautes.length > 0 && (
+        <>
+          {/* Personne n'explique nulle part ce qu'est Encre concrètement à un nouveau lecteur —
+              un ami connecté pour la première fois n'a rien compris. Ce bloc ne s'affiche que
+              tant qu'il n'y a rien à "Reprendre" (donc surtout pour les tout premiers instants
+              d'un compte), pour ne pas s'incruster une fois que le lecteur sait déjà. */}
+          <div className="mb-14 rounded-xl border border-or/20 bg-encreClair/40 p-6">
+            <p className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-or mb-3">Comment ça marche</p>
+            <p className="text-papier/70 text-sm leading-relaxed mb-5 max-w-lg">
+              Encre propose quatre types de lecture, tous gratuits à découvrir : des{' '}
+              <strong className="text-papier font-normal">romans</strong> qui sortent épisode par
+              épisode, des <strong className="text-papier font-normal">livres</strong> complets,
+              des <strong className="text-papier font-normal">contes africains</strong>, et des{' '}
+              <strong className="text-papier font-normal">histoires pour enfants</strong> à lire ou
+              écouter. Choisissez un titre ci-dessous pour commencer.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <a href="/romans" className="text-center rounded-lg border border-ligne px-3 py-2.5 hover:border-or/40 transition-colors">
+                <span className="text-papier/70 text-xs font-mono uppercase tracking-wide">Romans</span>
+              </a>
+              <a href="/livres" className="text-center rounded-lg border border-ligne px-3 py-2.5 hover:border-or/40 transition-colors">
+                <span className="text-papier/70 text-xs font-mono uppercase tracking-wide">Livres</span>
+              </a>
+              <a href="/contes-africains" className="text-center rounded-lg border border-ligne px-3 py-2.5 hover:border-or/40 transition-colors">
+                <span className="text-papier/70 text-xs font-mono uppercase tracking-wide">Contes</span>
+              </a>
+              <a href="/contes-enfants" className="text-center rounded-lg border border-ligne px-3 py-2.5 hover:border-or/40 transition-colors">
+                <span className="text-papier/70 text-xs font-mono uppercase tracking-wide">Enfants</span>
+              </a>
+            </div>
+          </div>
+
+          {nouveautes.length > 0 && (
           <div className="mb-14">
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-papier/40 mb-4">Pour commencer</p>
             <div className="flex gap-4 overflow-x-auto pb-1 -mx-6 px-6 sm:mx-0 sm:px-0" style={{ scrollSnapType: 'x mandatory' }}>
@@ -292,7 +323,8 @@ export default async function HomePage() {
               ))}
             </div>
           </div>
-        )
+          )}
+        </>
       )}
 
       {!aDejaDesContes && (

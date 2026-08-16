@@ -72,10 +72,13 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
         <h1 className="font-display text-[2.7rem] leading-[1.05] sm:text-6xl sm:leading-[1.05] text-papier max-w-2xl">
           La prochaine page <span className="text-or italic">s'écrit</span> avec vous.
         </h1>
-        <p className="text-papier/55 leading-relaxed mt-6 max-w-md text-lg font-body">
-          Des histoires publiées épisode après épisode, des livres complets, des contes venus du
-          continent et des histoires à raconter aux enfants — à lire ou à écouter, et une
-          communauté qui tourne les pages en même temps que vous.
+        <p className="text-papier/80 leading-relaxed mt-6 max-w-md text-lg font-body font-medium">
+          Encre est une plateforme de lecture en français : des romans qui sortent épisode par
+          épisode, des livres complets, et des contes à lire ou à écouter — gratuitement.
+        </p>
+        <p className="text-papier/50 leading-relaxed mt-3 max-w-md text-base font-body">
+          Créez un compte, choisissez une histoire, lisez à l'œil ou laissez la voix vous la lire.
+          Une communauté commente les chapitres au fur et à mesure qu'ils sortent.
         </p>
 
         <div className="flex flex-wrap items-center gap-4 mt-9">
@@ -86,10 +89,10 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
             Créer un compte gratuit
           </a>
           <a
-            href="#catalogue"
+            href="#comment-ca-marche"
             className="font-mono text-xs uppercase tracking-widest text-papier/60 hover:text-or transition-colors"
           >
-            Voir le catalogue ↓
+            Comment ça marche ↓
           </a>
         </div>
 
@@ -106,6 +109,42 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
             </p>
           </div>
         )}
+      </section>
+
+      {/* --- Comment ça marche : explication en clair, avant tout le reste. Un ami qui a testé
+           le lien à froid n'a rien compris ni sur cette page ni une fois connecté — cette
+           section existe pour que ça n'arrive plus, indépendamment du reste du design. --- */}
+      <section id="comment-ca-marche" className="px-6 py-16 border-t border-ligne scroll-mt-6">
+        <div className="max-w-6xl mx-auto">
+          <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-10">Comment ça marche</p>
+          <div className="grid sm:grid-cols-3 gap-8">
+            <div>
+              <span className="font-display text-3xl text-or/50">1</span>
+              <h3 className="font-display text-xl text-papier mt-3 mb-2">Créez un compte gratuit</h3>
+              <p className="text-papier/50 leading-relaxed text-sm font-body">
+                Aucune carte bancaire nécessaire. L'essentiel du catalogue se lit gratuitement.
+              </p>
+            </div>
+            <div>
+              <span className="font-display text-3xl text-or/50">2</span>
+              <h3 className="font-display text-xl text-papier mt-3 mb-2">Choisissez ce que vous lisez</h3>
+              <p className="text-papier/50 leading-relaxed text-sm font-body">
+                Un <strong className="text-papier/70 font-normal">roman</strong> qui sort épisode
+                par épisode, un <strong className="text-papier/70 font-normal">livre</strong> complet
+                à lire d'un bloc, ou un <strong className="text-papier/70 font-normal">conte</strong> —
+                africain ou pour enfants.
+              </p>
+            </div>
+            <div>
+              <span className="font-display text-3xl text-or/50">3</span>
+              <h3 className="font-display text-xl text-papier mt-3 mb-2">Lisez ou écoutez</h3>
+              <p className="text-papier/50 leading-relaxed text-sm font-body">
+                Sur votre téléphone, à l'œil ou avec la voix intégrée — reprenez toujours pile où
+                vous vous étiez arrêté.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* --- Catalogue réel --- */}
