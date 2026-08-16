@@ -5,9 +5,9 @@ import Script from 'next/script'
 
 const MONTANTS_SUGGERES = [100, 250, 500, 1000]
 
-// Le livre est déjà gratuit et le reste — ce bouton ne débloque rien, c'est un pur soutien à
-// l'auteur, montant choisi librement par le lecteur.
-export default function BoutonPourboire({ livreId }) {
+// Le livre/conte est déjà gratuit et le reste — ce bouton ne débloque rien, c'est un pur soutien à
+// l'auteur, montant choisi librement par le lecteur. Une seule des trois props doit être fournie.
+export default function BoutonPourboire({ livreId, conteAfricainId, conteEnfantId }) {
   const [montant, setMontant] = useState(250)
   const [montantPerso, setMontantPerso] = useState('')
   const [statut, setStatut] = useState('repos') // repos | ouverture | verification | merci | erreur
@@ -53,7 +53,7 @@ export default function BoutonPourboire({ livreId }) {
       const res = await fetch('/api/paiement/creer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ livreId, pourboire: true, montant: montantFinal }),
+        body: JSON.stringify({ livreId, conteAfricainId, conteEnfantId, pourboire: true, montant: montantFinal }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'echec')
@@ -84,7 +84,9 @@ export default function BoutonPourboire({ livreId }) {
   return (
     <div className="border border-ligne rounded-2xl p-8 text-center my-10">
       <Script src="https://cdn.kkiapay.me/k.js" strategy="afterInteractive" onLoad={() => setScriptPret(true)} />
-      <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-3">Ce livre est gratuit</p>
+      <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-3">
+        {conteAfricainId ? 'Ce conte est gratuit' : conteEnfantId ? 'Cette histoire est gratuite' : 'Ce livre est gratuit'}
+      </p>
       <p className="text-papier/60 mb-6">Si vous l'avez aimé, vous pouvez soutenir l'auteur.</p>
 
       <div className="flex flex-wrap justify-center gap-2 mb-4">

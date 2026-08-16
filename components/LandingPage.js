@@ -1,4 +1,4 @@
-import { degradeDe } from '@/lib/couvertures'
+import { CouvertureGeneree, CouvertureLivre, CouvertureConteAfricain, CouvertureConteEnfant } from '@/components/Couvertures'
 
 function formatDelai(ms) {
   const heures = Math.round(ms / 3_600_000)
@@ -8,22 +8,24 @@ function formatDelai(ms) {
   return `dans ${jours} jour${jours > 1 ? 's' : ''}`
 }
 
-function CouvertureMini({ id, titre, type }) {
-  const initiale = (titre || '?').trim().charAt(0).toUpperCase()
-  const [d1, d2, d3] = degradeDe(id || titre || '')
-  return (
-    <div className="relative w-full h-full overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{ background: type === 'livre' ? 'linear-gradient(160deg, #26292d 0%, #17191c 60%, #0d0f12 100%)' : `linear-gradient(150deg, ${d1} 0%, ${d2} 55%, ${d3} 100%)` }}
-      />
-      {type === 'livre' && <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-or/50" />}
-      <div className="absolute inset-0 opacity-[0.13] mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)', backgroundSize: '3px 3px' }} />
-      <div className="absolute inset-x-0 bottom-0 h-2/5" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)' }} />
-      <span className="font-display absolute right-3 top-3 text-3xl leading-none text-papier/[0.16] select-none pointer-events-none italic">{initiale}</span>
-      <div className="absolute inset-[5px] border border-papier/[0.1] pointer-events-none" />
-    </div>
-  )
+const HREF_PAR_TYPE = {
+  roman: '/roman',
+  livre: '/livres',
+  'conte-africain': '/contes-africains',
+  'conte-enfant': '/contes-enfants',
+}
+const LABEL_PAR_TYPE = {
+  roman: 'Roman',
+  livre: 'Livre',
+  'conte-africain': 'Conte',
+  'conte-enfant': 'Histoire',
+}
+
+function CouvertureVitrine({ item }) {
+  if (item.type === 'roman') return <CouvertureGeneree id={item.id} titre={item.titre} />
+  if (item.type === 'conte-africain') return <CouvertureConteAfricain titre={item.titre} />
+  if (item.type === 'conte-enfant') return <CouvertureConteEnfant titre={item.titre} />
+  return <CouvertureLivre titre={item.titre} />
 }
 
 const ATOUTS = [
@@ -47,6 +49,16 @@ const ATOUTS = [
     titre: 'Une communauté qui commente',
     texte: 'Réactions, discussions, profils de lecteurs — chaque chapitre se discute autant qu\'il se lit.',
   },
+  {
+    glyphe: '❖',
+    titre: 'Un patrimoine qui se raconte encore',
+    texte: "Des contes et histoires venus de tout le continent, à lire ou à écouter — la tradition orale trouve une nouvelle scène.",
+  },
+  {
+    glyphe: '☾',
+    titre: 'Un moment à partager avec un enfant',
+    texte: "Des histoires pensées pour être écoutées blotti tout près, avec une voix, de grandes lettres et un vrai moment de calme.",
+  },
 ]
 
 export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
@@ -55,14 +67,15 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
       {/* --- Hero --- */}
       <section className="px-6 pt-10 pb-16 max-w-6xl mx-auto">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-or mb-5">
-          Romans en épisodes · Livres à lire ou écouter
+          Romans en épisodes · Livres, Contes & Histoires à lire ou écouter
         </p>
         <h1 className="font-display text-[2.7rem] leading-[1.05] sm:text-6xl sm:leading-[1.05] text-papier max-w-2xl">
           La prochaine page <span className="text-or italic">s'écrit</span> avec vous.
         </h1>
         <p className="text-papier/55 leading-relaxed mt-6 max-w-md text-lg font-body">
-          Des histoires publiées épisode après épisode, des livres complets à lire ou à écouter,
-          et une communauté qui tourne les pages en même temps que vous.
+          Des histoires publiées épisode après épisode, des livres complets, des contes venus du
+          continent et des histoires à raconter aux enfants — à lire ou à écouter, et une
+          communauté qui tourne les pages en même temps que vous.
         </p>
 
         <div className="flex flex-wrap items-center gap-4 mt-9">
@@ -103,14 +116,14 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
             {vitrine.map((item) => (
               <a
                 key={`${item.type}-${item.id}`}
-                href={`/login?suite=/${item.type === 'livre' ? 'livres' : 'roman'}/${item.slug}`}
+                href={`/login?suite=${HREF_PAR_TYPE[item.type]}/${item.slug}`}
                 className="group shrink-0 w-[150px]"
               >
-                <div className="w-full aspect-[3/4.4] rounded-lg overflow-hidden border border-ligne group-hover:border-or/40 transition-colors">
-                  <CouvertureMini id={item.id} titre={item.titre} type={item.type} />
+                <div className="relative w-full aspect-[3/4.4] rounded-lg overflow-hidden border border-ligne group-hover:border-or/40 transition-colors">
+                  <CouvertureVitrine item={item} />
                 </div>
                 <p className="font-mono text-[0.6rem] uppercase tracking-widest text-or/70 mt-2.5">
-                  {item.type === 'livre' ? 'Livre' : 'Roman'}
+                  {LABEL_PAR_TYPE[item.type]}
                 </p>
                 <h3 className="font-display text-sm text-papier leading-snug mt-0.5 line-clamp-2">{item.titre}</h3>
               </a>
@@ -118,6 +131,56 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
           </div>
         </section>
       )}
+
+      {/* --- Contes & Histoires : identité propre, mise en avant à part du catalogue générique
+           ci-dessus, pour que la philosophie de ces deux sections ressorte vraiment (héritage
+           oral pour les Contes Africains, rituel du soir pour les Contes Enfants) plutôt que de
+           se fondre dans la vitrine Romans/Livres. --- */}
+      <section className="px-6 py-16 border-t border-ligne">
+        <div className="max-w-6xl mx-auto">
+          <p className="font-mono text-xs uppercase tracking-widest text-papier/40 mb-4">Contes & Histoires</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <a
+              href="/login?suite=/contes-africains"
+              className="group relative overflow-hidden rounded-2xl p-8 min-h-[220px] flex flex-col justify-end"
+              style={{ background: 'linear-gradient(150deg, #7a3b1e 0%, #4a2013 55%, #241009 100%)' }}
+            >
+              <div className="absolute inset-0 opacity-[0.14] mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)', backgroundSize: '3px 3px' }} />
+              <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 50% 20%, rgba(230,151,66,0.16) 0%, transparent 55%)' }} />
+              <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[#e69742] mb-2">Contes & Histoires Africaines</p>
+              <h3 className="font-display text-2xl sm:text-3xl text-papier leading-tight mb-3 max-w-sm">
+                La tradition orale, une nouvelle scène.
+              </h3>
+              <p className="text-papier/60 text-sm leading-relaxed max-w-sm mb-4">
+                Contes traditionnels et histoires venues de tout le continent, région par région —
+                à lire ou à écouter.
+              </p>
+              <span className="font-mono text-xs uppercase tracking-widest text-papier/70 group-hover:text-papier transition-colors inline-flex items-center gap-1.5">
+                Découvrir <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
+            </a>
+            <a
+              href="/login?suite=/contes-enfants"
+              className="group relative overflow-hidden rounded-2xl p-8 min-h-[220px] flex flex-col justify-end"
+              style={{ background: 'linear-gradient(145deg, #5b3a9e 0%, #3a2570 55%, #1f1440 100%)' }}
+            >
+              <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 85% at 50% 15%, rgba(255,209,102,0.2) 0%, transparent 50%)' }} />
+              <div className="absolute inset-0" style={{ background: 'radial-gradient(80% 60% at 85% 90%, rgba(45,212,191,0.16) 0%, transparent 60%)' }} />
+              <p className="font-mono text-[0.65rem] uppercase tracking-[0.16em] text-[#ffd166] mb-2">Contes pour Enfants</p>
+              <h3 className="font-display text-2xl sm:text-3xl text-papier leading-tight mb-3 max-w-sm">
+                Un rituel du soir, pas un écran de plus.
+              </h3>
+              <p className="text-papier/60 text-sm leading-relaxed max-w-sm mb-4">
+                Grandes lettres, voix chaleureuse, lecture qui démarre seule — de quoi raconter
+                une histoire sans y penser deux fois.
+              </p>
+              <span className="font-mono text-xs uppercase tracking-widest text-papier/70 group-hover:text-papier transition-colors inline-flex items-center gap-1.5">
+                Découvrir <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* --- Atouts --- */}
       <section className="px-6 py-16 border-t border-ligne">
@@ -175,7 +238,7 @@ export default function LandingPage({ prochaineSortie, vitrine, nbLecteurs }) {
       </section>
 
       <footer className="px-6 py-8 border-t border-ligne text-center">
-        <p className="font-mono text-[0.65rem] text-papier/25">Encre — romans en épisodes & livres, à lire ou à écouter.</p>
+        <p className="font-mono text-[0.65rem] text-papier/25">Encre — romans, livres, contes & histoires, à lire ou à écouter.</p>
       </footer>
     </div>
   )

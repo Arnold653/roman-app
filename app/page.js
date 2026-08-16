@@ -3,8 +3,24 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import RangStories from '@/components/RangStories'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 import LandingPage from '@/components/LandingPage'
-import { CouvertureGeneree, CouvertureLivre } from '@/components/Couvertures'
+import { CouvertureGeneree, CouvertureLivre, CouvertureConteAfricain, CouvertureConteEnfant } from '@/components/Couvertures'
 import { degradeDe } from '@/lib/couvertures'
+
+// Un seul endroit pour faire correspondre chaque type de contenu à son URL et son étiquette —
+// évite de dupliquer ce mapping partout où les 4 types se mélangent sur cette page (Nouveautés,
+// vitrine visiteur...).
+const HREF_PAR_TYPE = {
+  roman: '/roman',
+  livre: '/livres',
+  'conte-africain': '/contes-africains',
+  'conte-enfant': '/contes-enfants',
+}
+const LABEL_PAR_TYPE = {
+  roman: 'Roman',
+  livre: 'Livre',
+  'conte-africain': 'Conte',
+  'conte-enfant': 'Histoire',
+}
 
 export default async function HomePage() {
   const supabase = createClient()
@@ -13,9 +29,11 @@ export default async function HomePage() {
   // --- Visiteur non connecté : page marketing dédiée, pas le tableau de bord ---
   if (!user) {
     const admin = createAdminClient()
-    const [{ data: romansVitrine }, { data: livresVitrine }, { data: chapitreProche }, { count: nbLecteurs }] = await Promise.all([
-      supabase.from('romans').select('id, titre, slug, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(5),
-      supabase.from('livres').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(3),
+    const [{ data: romansVitrine }, { data: livresVitrine }, { data: contesAfricainsVitrine }, { data: contesEnfantsVitrine }, { data: chapitreProche }, { count: nbLecteurs }] = await Promise.all([
+      supabase.from('romans').select('id, titre, slug, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(4),
+      supabase.from('livres').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+      supabase.from('contes_africains').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+      supabase.from('contes_enfants').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
       // Client admin : la policy RLS masque les chapitres pas encore sortis à un visiteur normal,
       // ce qui cassait ce compte à rebours. On ne sélectionne que des métadonnées, jamais `contenu`.
       admin
@@ -33,7 +51,9 @@ export default async function HomePage() {
     const vitrine = [
       ...(romansVitrine || []).map((r) => ({ ...r, type: 'roman' })),
       ...(livresVitrine || []).map((l) => ({ ...l, type: 'livre' })),
-    ].slice(0, 6)
+      ...(contesAfricainsVitrine || []).map((c) => ({ ...c, type: 'conte-africain' })),
+      ...(contesEnfantsVitrine || []).map((c) => ({ ...c, type: 'conte-enfant' })),
+    ].slice(0, 8)
 
     const prochaineSortie = chapitreProche
       ? {
@@ -48,13 +68,15 @@ export default async function HomePage() {
 
   // --- Compte connecté : tableau de bord personnel ---
 
-  // "Reprendre" : mélange romans et livres selon la dernière position de lecture réelle de
-  // l'utilisateur, tous types confondus, triés par date — pas une bannière décorative.
+  // "Reprendre" : mélange romans, livres et contes selon la dernière position de lecture réelle
+  // de l'utilisateur, tous types confondus, triés par date — pas une bannière décorative.
   let reprendre = []
   if (user) {
-    const [{ data: progRomans }, { data: progLivres }] = await Promise.all([
+    const [{ data: progRomans }, { data: progLivres }, { data: progContesAfricains }, { data: progContesEnfants }] = await Promise.all([
       supabase.from('lecture_progress').select('dernier_chapitre, updated_at, romans(titre, slug)').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(4),
       supabase.from('lecture_progress_livres').select('derniere_section, updated_at, livres(titre, slug, contenu_extrait)').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(4),
+      supabase.from('lecture_progress_contes_africains').select('derniere_section, updated_at, contes_africains(titre, slug, contenu_extrait)').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(4),
+      supabase.from('lecture_progress_contes_enfants').select('derniere_section, updated_at, contes_enfants(titre, slug, contenu_extrait)').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(4),
     ])
 
     const itemsRomans = (progRomans || [])
@@ -74,7 +96,27 @@ export default async function HomePage() {
         }
       })
 
-    reprendre = [...itemsRomans, ...itemsLivres]
+    const itemsContesAfricains = (progContesAfricains || [])
+      .filter((p) => p.contes_africains)
+      .map((p) => {
+        const label = p.contes_africains.contenu_extrait?.sections?.[p.derniere_section]?.pilLabel
+        return {
+          type: 'Conte', titre: p.contes_africains.titre, sousTitre: label || `Partie ${p.derniere_section + 1}`,
+          href: `/contes-africains/${p.contes_africains.slug}`, updated_at: p.updated_at,
+        }
+      })
+
+    const itemsContesEnfants = (progContesEnfants || [])
+      .filter((p) => p.contes_enfants)
+      .map((p) => {
+        const label = p.contes_enfants.contenu_extrait?.sections?.[p.derniere_section]?.pilLabel
+        return {
+          type: 'Histoire', titre: p.contes_enfants.titre, sousTitre: label || `Partie ${p.derniere_section + 1}`,
+          href: `/contes-enfants/${p.contes_enfants.slug}`, updated_at: p.updated_at,
+        }
+      })
+
+    reprendre = [...itemsRomans, ...itemsLivres, ...itemsContesAfricains, ...itemsContesEnfants]
       .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
       .slice(0, 4)
   }
@@ -92,16 +134,21 @@ export default async function HomePage() {
   const { data: profilUtilisateur } = await supabase.from('profiles').select('pseudo').eq('id', user.id).maybeSingle()
   const pseudoUtilisateur = profilUtilisateur?.pseudo
 
-  // Nouveautés : de quoi découvrir sans dupliquer les pages Romans/Livres, seulement 3 pièces
-  // récentes, pour celles et ceux qui n'ont encore rien commencé (ou veulent autre chose).
-  const [{ data: romansRecents }, { data: livresRecents }] = await Promise.all([
+  // Nouveautés : de quoi découvrir sans dupliquer les pages Romans/Livres/Contes, seulement
+  // quelques pièces récentes tous types confondus, pour celles et ceux qui n'ont encore rien
+  // commencé (ou veulent autre chose).
+  const [{ data: romansRecents }, { data: livresRecents }, { data: contesAfricainsRecents }, { data: contesEnfantsRecents }] = await Promise.all([
     supabase.from('romans').select('id, titre, slug, genre, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(3),
     supabase.from('livres').select('id, titre, slug, genre').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+    supabase.from('contes_africains').select('id, titre, slug, region').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+    supabase.from('contes_enfants').select('id, titre, slug, tranche_age').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
   ])
   const nouveautes = [
     ...(romansRecents || []).map((r) => ({ ...r, type: 'roman' })),
     ...(livresRecents || []).map((l) => ({ ...l, type: 'livre' })),
-  ].slice(0, 4)
+    ...(contesAfricainsRecents || []).map((c) => ({ ...c, type: 'conte-africain' })),
+    ...(contesEnfantsRecents || []).map((c) => ({ ...c, type: 'conte-enfant' })),
+  ].slice(0, 5)
 
   const estAdmin = user?.email === process.env.ADMIN_EMAIL
 
@@ -140,6 +187,10 @@ export default async function HomePage() {
     if (heure < 18) return 'Bon après-midi'
     return 'Bonsoir'
   })()
+
+  // Tant que le lecteur n'a encore commencé aucun conte, on lui présente les deux nouvelles
+  // sections directement — pas juste noyées dans "Pour commencer" au milieu des romans/livres.
+  const aDejaDesContes = reprendre.some((r) => r.type === 'Conte' || r.type === 'Histoire')
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-6xl mx-auto">
@@ -214,7 +265,7 @@ export default async function HomePage() {
               {nouveautes.map((item) => (
                 <a
                   key={`${item.type}-${item.id}`}
-                  href={item.type === 'livre' ? `/livres/${item.slug}` : `/roman/${item.slug}`}
+                  href={`${HREF_PAR_TYPE[item.type]}/${item.slug}`}
                   className="group shrink-0 w-[150px]"
                   style={{ scrollSnapAlign: 'start' }}
                 >
@@ -227,17 +278,53 @@ export default async function HomePage() {
                       <img src={item.couverture_url} alt={item.titre} className="absolute inset-0 w-full h-full object-cover" />
                     ) : item.type === 'roman' ? (
                       <CouvertureGeneree id={item.id} titre={item.titre} />
+                    ) : item.type === 'conte-africain' ? (
+                      <CouvertureConteAfricain titre={item.titre} />
+                    ) : item.type === 'conte-enfant' ? (
+                      <CouvertureConteEnfant titre={item.titre} />
                     ) : (
                       <CouvertureLivre titre={item.titre} />
                     )}
                   </div>
-                  <p className="font-mono text-[0.6rem] uppercase tracking-widest text-or/70 mb-0.5">{item.type === 'livre' ? 'Livre' : 'Roman'}</p>
+                  <p className="font-mono text-[0.6rem] uppercase tracking-widest text-or/70 mb-0.5">{LABEL_PAR_TYPE[item.type]}</p>
                   <h3 className="font-display text-sm text-papier leading-snug line-clamp-2">{item.titre}</h3>
                 </a>
               ))}
             </div>
           </div>
         )
+      )}
+
+      {!aDejaDesContes && (
+        <div className="mb-14">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-papier/40 mb-4">Nouveau sur Encre</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <a
+              href="/contes-africains"
+              className="group relative overflow-hidden rounded-xl p-6 min-h-[130px] flex flex-col justify-end"
+              style={{ background: 'linear-gradient(150deg, #7a3b1e 0%, #4a2013 55%, #241009 100%)' }}
+            >
+              <div className="absolute inset-0 opacity-[0.14] mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.7) 1px, transparent 0)', backgroundSize: '3px 3px' }} />
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[#e69742] mb-1.5">Contes & Histoires Africaines</p>
+              <h3 className="font-display text-xl text-papier leading-tight mb-1">Le continent a des histoires à raconter</h3>
+              <span className="text-papier/60 text-sm group-hover:text-papier transition-colors mt-1 inline-flex items-center gap-1">
+                Découvrir <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
+            </a>
+            <a
+              href="/contes-enfants"
+              className="group relative overflow-hidden rounded-xl p-6 min-h-[130px] flex flex-col justify-end"
+              style={{ background: 'linear-gradient(145deg, #5b3a9e 0%, #3a2570 55%, #1f1440 100%)' }}
+            >
+              <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 85% at 50% 15%, rgba(255,209,102,0.18) 0%, transparent 50%)' }} />
+              <p className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-[#ffd166] mb-1.5">Contes pour Enfants</p>
+              <h3 className="font-display text-xl text-papier leading-tight mb-1">Des histoires à écouter, blotti tout près</h3>
+              <span className="text-papier/60 text-sm group-hover:text-papier transition-colors mt-1 inline-flex items-center gap-1">
+                Découvrir <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+              </span>
+            </a>
+          </div>
+        </div>
       )}
 
       {/* Un vrai moment de la communauté plutôt qu'un chiffre — invite à réagir soi-même. */}

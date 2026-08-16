@@ -5,6 +5,8 @@ import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
+import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { GENRES_CONTES_AFRICAINS } from '@/lib/genres'
 
 function detecterType(nomFichier) {
   const ext = nomFichier.split('.').pop().toLowerCase()
@@ -42,6 +44,16 @@ export default function AdminContesAfricainsPage() {
   const [apercu, setApercu] = useState(null)
   const [contesPlies, setContesPlies] = useState(new Set())
   const [edition, setEdition] = useState(null) // id du conte en cours d'édition des infos
+  const [monetisation, setMonetisation] = useState({}) // { [conteId]: { mode_monetisation, prix_fcfa, bonus_contenu } }
+  const [monetisationOuverte, setMonetisationOuverte] = useState(null)
+
+  // --- Upload multiple ---
+  const [fichiersLot, setFichiersLot] = useState([])
+  const [genreLot, setGenreLot] = useState('')
+  const [regionLot, setRegionLot] = useState('')
+  const [lotEnCours, setLotEnCours] = useState(false)
+  const [lotProgression, setLotProgression] = useState(null)
+  const [lotResultats, setLotResultats] = useState(null)
 
   function editer(conte) {
     setEdition(conte.id)
@@ -77,6 +89,33 @@ export default function AdminContesAfricainsPage() {
       annulerEdition()
       charger()
     }
+  }
+
+  function ouvrirMonetisation(conte) {
+    setMonetisationOuverte(conte.id)
+    setMonetisation((m) => ({
+      ...m,
+      [conte.id]: {
+        mode_monetisation: conte.mode_monetisation || 'gratuit',
+        prix_fcfa: conte.prix_fcfa || 0,
+        bonus_contenu: conte.bonus_contenu || '',
+      },
+    }))
+  }
+
+  function majMonetisation(conteId, champ, valeur) {
+    setMonetisation((m) => ({ ...m, [conteId]: { ...m[conteId], [champ]: valeur } }))
+  }
+
+  async function sauvegarderMonetisation(conteId) {
+    const donnees = monetisation[conteId]
+    const res = await fetch('/api/admin/conte-africain', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'monetisation', id: conteId, ...donnees }),
+    })
+    if (res.ok) { setMessage('Monétisation enregistrée ✓'); setMonetisationOuverte(null); charger() }
+    else setMessage('Erreur lors de l\'enregistrement de la monétisation')
   }
 
   function basculerPliConte(id) {
@@ -163,6 +202,65 @@ export default function AdminContesAfricainsPage() {
     }
   }
 
+  // --- Upload multiple : un conte par fichier, titre+slug auto-détectés, genre et région
+  // choisis une fois pour tout le lot, créés en brouillon.
+  async function importerLot() {
+    if (fichiersLot.length === 0) return
+    setLotEnCours(true)
+    setLotResultats(null)
+    const resultats = []
+    const slugsUtilises = new Set((contes || []).map((c) => c.slug))
+
+    for (let i = 0; i < fichiersLot.length; i++) {
+      const fichier = fichiersLot[i]
+      setLotProgression({ index: i + 1, total: fichiersLot.length, nom: fichier.name })
+      try {
+        const type = detecterType(fichier.name)
+        let contenu
+        if (type === 'pdf') {
+          const bytes = new Uint8Array(await fichier.arrayBuffer())
+          contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+        } else if (type === 'epub') {
+          contenu = await extraireEpub(await fichier.arrayBuffer(), () => {})
+        } else if (type === 'docx') {
+          contenu = await extraireDocx(await fichier.arrayBuffer())
+        } else {
+          contenu = extraireTexteBrut(await fichier.text())
+        }
+
+        const titre = detecterTitreLivre(fichier.name, contenu)
+        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
+        slugsUtilises.add(slug)
+
+        const data = new FormData()
+        data.append('titre', titre)
+        data.append('slug', slug)
+        data.append('auteur', '')
+        data.append('description', '')
+        data.append('genre', genreLot)
+        data.append('region', regionLot)
+        data.append('genere_par_ia', 'true')
+        data.append('verifie_par', '')
+        data.append('fichier', fichier)
+        data.append('fichier_type', type)
+        data.append('contenu_extrait', JSON.stringify(contenu))
+        data.append('statut', 'brouillon')
+
+        const res = await fetch('/api/admin/conte-africain', { method: 'POST', body: data })
+        const resultat = await res.json()
+        resultats.push({ nom: fichier.name, titre, ok: res.ok, message: res.ok ? `/contes-africains/${resultat.slug}` : resultat.error })
+      } catch (e) {
+        resultats.push({ nom: fichier.name, titre: '—', ok: false, message: e?.message || String(e) })
+      }
+    }
+
+    setLotResultats(resultats)
+    setLotProgression(null)
+    setLotEnCours(false)
+    setFichiersLot([])
+    charger()
+  }
+
   async function supprimer(conte) {
     if (!confirm(`Supprimer "${conte.titre}" ?`)) return
     const res = await fetch(`/api/admin/conte-africain?id=${conte.id}`, { method: 'DELETE' })
@@ -188,12 +286,20 @@ export default function AdminContesAfricainsPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text', readOnly = false) => (
+  const champ = (label, field, type = 'text', readOnly = false, options = []) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
         <textarea value={form[field]} onChange={(e) => update(field, e.target.value)} rows={4} readOnly={readOnly}
           className={`w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#e69742] transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} />
+      ) : type === 'select' ? (
+        <select value={form[field]} onChange={(e) => update(field, e.target.value)}
+          className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors">
+          <option value="">— Choisir un genre —</option>
+          {options.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
       ) : (
         <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)} readOnly={readOnly}
           className={`w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742] transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} />
@@ -217,7 +323,7 @@ export default function AdminContesAfricainsPage() {
         {champ('Slug (identifiant dans l\'URL)', 'slug', 'text', !!edition)}
         {champ('Auteur / conteur (optionnel)', 'auteur')}
         {champ('Description / résumé', 'description', 'textarea')}
-        {champ('Genre (optionnel)', 'genre')}
+        {champ('Genre (optionnel)', 'genre', 'select', false, GENRES_CONTES_AFRICAINS)}
         {champ('Région / origine (ex. Bénin, Sénégal, Mali...)', 'region')}
 
         {!edition && (
@@ -232,6 +338,50 @@ export default function AdminContesAfricainsPage() {
           />
         </div>
         )}
+
+        <div className="border-t border-ligne pt-5">
+          <p className="text-[#e69742] text-xs font-mono uppercase tracking-widest mb-2">Upload multiple</p>
+          <p className="text-papier/40 text-xs mb-4 leading-relaxed">
+            Plusieurs fichiers d'un coup → un conte par fichier, titre et slug détectés automatiquement, créés en brouillon.
+          </p>
+          <input
+            type="file" multiple accept=".pdf,.md,.txt,.epub,.docx,application/pdf,text/markdown,text/plain,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={(e) => { setFichiersLot(Array.from(e.target.files || [])); setLotResultats(null) }}
+            className="w-full text-papier text-sm mb-3"
+          />
+          {fichiersLot.length > 0 && (
+            <p className="text-papier/50 text-xs font-mono mb-3">{fichiersLot.length} fichier(s) sélectionné(s)</p>
+          )}
+          <select
+            value={genreLot} onChange={(e) => setGenreLot(e.target.value)}
+            className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#e69742] transition-colors"
+          >
+            <option value="">Genre pour tout le lot (optionnel)</option>
+            {GENRES_CONTES_AFRICAINS.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          <input
+            type="text" value={regionLot} onChange={(e) => setRegionLot(e.target.value)}
+            placeholder="Région / origine pour tout le lot (optionnel)"
+            className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm mb-3 focus:outline-none focus:border-[#e69742] transition-colors"
+          />
+          <button
+            type="button" onClick={importerLot} disabled={lotEnCours || fichiersLot.length === 0}
+            className="w-full bg-encreClair border border-[#e69742]/40 text-[#e69742] font-medium rounded-lg px-3 py-3.5 hover:bg-[#e69742]/10 transition-all disabled:opacity-50"
+          >
+            {lotEnCours ? `Import ${lotProgression?.index || ''}/${lotProgression?.total || ''} — ${lotProgression?.nom || ''}` : `Importer le lot (${fichiersLot.length})`}
+          </button>
+          {lotResultats && (
+            <div className="mt-4 space-y-1.5">
+              {lotResultats.map((r, i) => (
+                <p key={i} className={`text-xs font-mono ${r.ok ? 'text-papier/60' : 'text-red-400'}`}>
+                  {r.ok ? '✓' : '✗'} {r.titre} — {r.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="border-t border-ligne pt-5">
           <p className="text-[#e69742] text-xs font-mono uppercase tracking-widest mb-4">Transparence</p>
@@ -317,6 +467,67 @@ export default function AdminContesAfricainsPage() {
                 {c.statut === 'publie' ? 'Publié' : 'Brouillon'}
               </button>
             </div>
+
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[0.65rem] font-mono uppercase tracking-wide text-papier/40 border border-ligne rounded-full px-2.5 py-1">
+                {{ gratuit: 'Gratuit', pourboire: 'Gratuit + pourboire', payant: 'Payant', bonus: 'Gratuit + bonus payant' }[c.mode_monetisation || 'gratuit']}
+                {c.prix_fcfa > 0 && (c.mode_monetisation === 'payant' || c.mode_monetisation === 'bonus') ? ` · ${c.prix_fcfa} FCFA` : ''}
+              </span>
+              <button
+                onClick={() => (monetisationOuverte === c.id ? setMonetisationOuverte(null) : ouvrirMonetisation(c))}
+                className="text-[0.65rem] font-mono text-[#e69742] hover:brightness-125"
+              >
+                {monetisationOuverte === c.id ? 'Fermer' : 'Modifier'}
+              </button>
+            </div>
+
+            {monetisationOuverte === c.id && (
+              <div className="bg-encre border border-ligne rounded-lg p-4 mb-3 space-y-3">
+                <div>
+                  <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">Mode de monétisation</label>
+                  <select
+                    value={monetisation[c.id]?.mode_monetisation}
+                    onChange={(e) => majMonetisation(c.id, 'mode_monetisation', e.target.value)}
+                    className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742]"
+                  >
+                    <option value="gratuit">Gratuit</option>
+                    <option value="pourboire">Gratuit + pourboire libre</option>
+                    <option value="payant">Entièrement payant</option>
+                    <option value="bonus">Gratuit + bonus payant à côté</option>
+                  </select>
+                </div>
+                {(monetisation[c.id]?.mode_monetisation === 'payant' || monetisation[c.id]?.mode_monetisation === 'bonus') && (
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">
+                      Prix en FCFA {monetisation[c.id]?.mode_monetisation === 'bonus' ? '(du bonus)' : '(du conte entier)'}
+                    </label>
+                    <input
+                      type="number" min="0" step="50"
+                      value={monetisation[c.id]?.prix_fcfa}
+                      onChange={(e) => majMonetisation(c.id, 'prix_fcfa', e.target.value)}
+                      className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-[#e69742]"
+                    />
+                  </div>
+                )}
+                {monetisation[c.id]?.mode_monetisation === 'bonus' && (
+                  <div>
+                    <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">Texte du bonus (postface, notes, version inédite...)</label>
+                    <textarea
+                      rows={4}
+                      value={monetisation[c.id]?.bonus_contenu}
+                      onChange={(e) => majMonetisation(c.id, 'bonus_contenu', e.target.value)}
+                      className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm leading-relaxed focus:outline-none focus:border-[#e69742]"
+                    />
+                  </div>
+                )}
+                <button
+                  onClick={() => sauvegarderMonetisation(c.id)}
+                  className="w-full bg-[#e69742] text-encre text-sm font-medium rounded-lg px-3 py-2.5 hover:brightness-110 transition-all"
+                >
+                  Enregistrer
+                </button>
+              </div>
+            )}
 
             {!plie && sections.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
