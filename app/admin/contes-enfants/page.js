@@ -6,6 +6,7 @@ import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { extraireEnTeteMetadonnees } from '@/lib/parseEnTete'
 import { GENRES_CONTES_ENFANTS } from '@/lib/genres'
 
 function detecterType(nomFichier) {
@@ -140,13 +141,13 @@ export default function AdminContesEnfantsPage() {
 
   async function extraireEtApercevoir() {
     if (!fichier) { setMessage('Choisis un fichier.'); return }
-    if (!form.slug) { setMessage('Renseigne le slug avant d\'extraire (utilisé pour stocker les images).'); return }
+    const type = detecterType(fichier.name)
+    if (type === 'pdf' && !form.slug) { setMessage('Renseigne le slug avant d\'extraire (utilisé pour stocker les images).'); return }
     setLoading(true)
     setMessage('')
     setProgression(0)
 
     try {
-      const type = detecterType(fichier.name)
       let contenu
       if (type === 'pdf') {
         const bytes = new Uint8Array(await fichier.arrayBuffer())
@@ -162,8 +163,19 @@ export default function AdminContesEnfantsPage() {
         const bytes = await fichier.arrayBuffer()
         contenu = await extraireDocx(bytes)
       } else {
-        const texte = await fichier.text()
-        contenu = extraireTexteBrut(texte)
+        // .md / .txt : en-tête de métadonnées optionnel (titre, genre, tranche d'âge, résumé)
+        // produit par le prompt STORYBOOK ENGINE — détecté et retiré avant segmentation.
+        const brut = await fichier.text()
+        const entete = extraireEnTeteMetadonnees(brut)
+        setForm((f) => ({
+          ...f,
+          titre: f.titre || entete.titre,
+          slug: f.slug || (entete.titre ? slugDepuisTitre(entete.titre) : f.slug),
+          genre: f.genre || entete.genre,
+          tranche_age: f.tranche_age || entete.trancheAge,
+          description: f.description || entete.description,
+        }))
+        contenu = extraireTexteBrut(entete.resteDuTexte || brut)
       }
       setApercu({ contenu, type })
       setMessage(`Extraction terminée : ${contenu.sections.length} section(s) détectée(s). Vérifie l'aperçu ci-dessous avant de créer l'histoire.`)
@@ -223,6 +235,7 @@ export default function AdminContesEnfantsPage() {
       try {
         const type = detecterType(fichier.name)
         let contenu
+        let entete = null
         if (type === 'pdf') {
           const bytes = new Uint8Array(await fichier.arrayBuffer())
           contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
@@ -231,10 +244,12 @@ export default function AdminContesEnfantsPage() {
         } else if (type === 'docx') {
           contenu = await extraireDocx(await fichier.arrayBuffer())
         } else {
-          contenu = extraireTexteBrut(await fichier.text())
+          const brut = await fichier.text()
+          entete = extraireEnTeteMetadonnees(brut)
+          contenu = extraireTexteBrut(entete.resteDuTexte || brut)
         }
 
-        const titre = detecterTitreLivre(fichier.name, contenu)
+        const titre = (entete?.titre) || detecterTitreLivre(fichier.name, contenu)
         const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
         slugsUtilises.add(slug)
 
@@ -242,9 +257,9 @@ export default function AdminContesEnfantsPage() {
         data.append('titre', titre)
         data.append('slug', slug)
         data.append('auteur', '')
-        data.append('description', '')
-        data.append('genre', genreLot)
-        data.append('tranche_age', trancheAgeLot)
+        data.append('description', entete?.description || '')
+        data.append('genre', entete?.genre || genreLot)
+        data.append('tranche_age', entete?.trancheAge || trancheAgeLot)
         data.append('genere_par_ia', 'true')
         data.append('verifie_par', '')
         data.append('fichier', fichier)

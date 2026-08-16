@@ -6,6 +6,7 @@ import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { extraireEnTeteMetadonnees } from '@/lib/parseEnTete'
 import { GENRES_LIVRES } from '@/lib/genres'
 
 function detecterType(nomFichier) {
@@ -141,13 +142,15 @@ export default function AdminLivresPage() {
   // lecteur public attendre l'extraction — but même de cette évolution.
   async function extraireEtApercevoir() {
     if (!fichier) { setMessage('Choisis un fichier.'); return }
-    if (!form.slug) { setMessage('Renseigne le slug avant d\'extraire (utilisé pour stocker les images).'); return }
+    const type = detecterType(fichier.name)
+    // Le slug n'est nécessaire avant extraction que pour le PDF (chemin de stockage des images
+    // extraites) — pour .md/.txt/.epub/.docx, il peut être déduit après coup du contenu.
+    if (type === 'pdf' && !form.slug) { setMessage('Renseigne le slug avant d\'extraire (utilisé pour stocker les images).'); return }
     setLoading(true)
     setMessage('')
     setProgression(0)
 
     try {
-      const type = detecterType(fichier.name)
       let contenu
       if (type === 'pdf') {
         const bytes = new Uint8Array(await fichier.arrayBuffer())
@@ -163,8 +166,20 @@ export default function AdminLivresPage() {
         const bytes = await fichier.arrayBuffer()
         contenu = await extraireDocx(bytes)
       } else {
-        const texte = await fichier.text()
-        contenu = extraireTexteBrut(texte)
+        // .md / .txt : on détecte d'abord l'en-tête de métadonnées optionnel (titre, genre,
+        // résumé) produit par les prompts ENGINE, avant de segmenter le reste du texte —
+        // évite de retrouver le titre du livre dupliqué comme une "partie" dans le lecteur,
+        // et pré-remplit le formulaire pour ne rien ressaisir à la main.
+        const brut = await fichier.text()
+        const entete = extraireEnTeteMetadonnees(brut)
+        setForm((f) => ({
+          ...f,
+          titre: f.titre || entete.titre,
+          slug: f.slug || (entete.titre ? slugDepuisTitre(entete.titre) : f.slug),
+          genre: f.genre || entete.genre,
+          description: f.description || entete.description,
+        }))
+        contenu = extraireTexteBrut(entete.resteDuTexte || brut)
       }
       setApercu({ contenu, type })
       setMessage(`Extraction terminée : ${contenu.sections.length} section(s) détectée(s). Vérifie l'aperçu ci-dessous avant de créer le livre.`)
@@ -224,6 +239,7 @@ export default function AdminLivresPage() {
       try {
         const type = detecterType(fichier.name)
         let contenu
+        let entete = null
         if (type === 'pdf') {
           const bytes = new Uint8Array(await fichier.arrayBuffer())
           contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
@@ -232,10 +248,12 @@ export default function AdminLivresPage() {
         } else if (type === 'docx') {
           contenu = await extraireDocx(await fichier.arrayBuffer())
         } else {
-          contenu = extraireTexteBrut(await fichier.text())
+          const brut = await fichier.text()
+          entete = extraireEnTeteMetadonnees(brut)
+          contenu = extraireTexteBrut(entete.resteDuTexte || brut)
         }
 
-        const titre = detecterTitreLivre(fichier.name, contenu)
+        const titre = (entete?.titre) || detecterTitreLivre(fichier.name, contenu)
         const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
         slugsUtilises.add(slug)
 
@@ -243,8 +261,8 @@ export default function AdminLivresPage() {
         data.append('titre', titre)
         data.append('slug', slug)
         data.append('auteur', '')
-        data.append('description', '')
-        data.append('genre', genreLot)
+        data.append('description', entete?.description || '')
+        data.append('genre', entete?.genre || genreLot)
         data.append('genere_par_ia', 'true')
         data.append('verifie_par', '')
         data.append('fichier', fichier)
