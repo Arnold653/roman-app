@@ -5,7 +5,7 @@ import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
-import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { detecterTitreLivre, slugDepuisTitre, slugUnique, titreDepuisNomFichier } from '@/lib/detectionTitre'
 import { extraireEnTeteMetadonnees } from '@/lib/parseEnTete'
 import { NOMS_CONNUS } from '@/lib/verificateurs'
 import { GENRES_LIVRES } from '@/lib/genres'
@@ -243,11 +243,14 @@ export default function AdminLivresPage() {
       setLotProgression({ index: i + 1, total: fichiersLot.length, nom: fichier.name })
       try {
         const type = detecterType(fichier.name)
+        const slugProvisoire = slugUnique(slugDepuisTitre(titreDepuisNomFichier(fichier.name)), slugsUtilises)
+        slugsUtilises.add(slugProvisoire)
+
         let contenu
         let entete = null
         if (type === 'pdf') {
           const bytes = new Uint8Array(await fichier.arrayBuffer())
-          contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+          contenu = await extrairePdfDepuisUrl(bytes, (nom, dataUrl) => televerserImageAdmin(slugProvisoire, nom, dataUrl), () => {})
           if (contenu.metadonnees) entete = { titre: '', genre: contenu.metadonnees.genre, description: contenu.metadonnees.description }
         } else if (type === 'epub') {
           contenu = await extraireEpub(await fichier.arrayBuffer(), () => {})
@@ -260,8 +263,7 @@ export default function AdminLivresPage() {
         }
 
         const titre = (entete?.titre) || detecterTitreLivre(fichier.name, contenu)
-        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
-        slugsUtilises.add(slug)
+        const slug = slugProvisoire
 
         const data = new FormData()
         data.append('titre', titre)

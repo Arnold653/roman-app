@@ -5,7 +5,7 @@ import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
-import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
+import { detecterTitreLivre, slugDepuisTitre, slugUnique, titreDepuisNomFichier } from '@/lib/detectionTitre'
 import { extraireEnTeteMetadonnees } from '@/lib/parseEnTete'
 import { NOMS_CONNUS } from '@/lib/verificateurs'
 import { GENRES_CONTES_ENFANTS } from '@/lib/genres'
@@ -244,11 +244,20 @@ export default function AdminContesEnfantsPage() {
       setLotProgression({ index: i + 1, total: fichiersLot.length, nom: fichier.name })
       try {
         const type = detecterType(fichier.name)
+        // Le slug doit être connu AVANT extraction pour pouvoir vraiment téléverser les images
+        // d'un PDF (chemin de stockage) — jusqu'ici le lot extrayait sans callback d'image
+        // (image ignorée silencieusement) précisément parce que le slug n'était calculé
+        // qu'après coup. On se base sur le nom de fichier, quitte à l'affiner avec le vrai
+        // titre détecté ensuite : le slug de stockage n'a pas besoin d'être parfait, juste
+        // stable et unique.
+        const slugProvisoire = slugUnique(slugDepuisTitre(titreDepuisNomFichier(fichier.name)), slugsUtilises)
+        slugsUtilises.add(slugProvisoire)
+
         let contenu
         let entete = null
         if (type === 'pdf') {
           const bytes = new Uint8Array(await fichier.arrayBuffer())
-          contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+          contenu = await extrairePdfDepuisUrl(bytes, (nom, dataUrl) => televerserImageAdmin(slugProvisoire, nom, dataUrl), () => {})
           if (contenu.metadonnees) entete = { titre: '', genre: contenu.metadonnees.genre, trancheAge: contenu.metadonnees.trancheAge, description: contenu.metadonnees.description }
         } else if (type === 'epub') {
           contenu = await extraireEpub(await fichier.arrayBuffer(), () => {})
@@ -261,8 +270,7 @@ export default function AdminContesEnfantsPage() {
         }
 
         const titre = (entete?.titre) || detecterTitreLivre(fichier.name, contenu)
-        const slug = slugUnique(slugDepuisTitre(titre), slugsUtilises)
-        slugsUtilises.add(slug)
+        const slug = slugProvisoire
 
         const data = new FormData()
         data.append('titre', titre)
