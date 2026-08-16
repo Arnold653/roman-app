@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { parserMarkdownRoman } from '@/lib/parseMd'
 import { titreDepuisNomFichier, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 import { GENRES_ROMANS } from '@/lib/genres'
+import { NOMS_CONNUS } from '@/lib/verificateurs'
 
 const FORM_VIDE = {
   titre: '', slug: '', resume: '', genre: '', niveau_theme: 1,
@@ -574,7 +575,7 @@ export default function AdminPage() {
     chargerRomans()
   }
 
-  const champ = (label, field, type = 'text', options = []) => (
+  const champ = (label, field, type = 'text', options = [], listId = null) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
@@ -600,6 +601,7 @@ export default function AdminPage() {
           type={type}
           value={form[field]}
           onChange={(e) => update(field, type === 'number' ? Number(e.target.value) : e.target.value)}
+          list={listId || undefined}
           className="w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors"
         />
       )}
@@ -608,6 +610,9 @@ export default function AdminPage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-xl mx-auto lever">
+      <datalist id="noms-connus">
+        {NOMS_CONNUS.map((n) => <option key={n} value={n} />)}
+      </datalist>
       <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
       <div className="flex items-center justify-between mb-2">
         <h1 className="font-display text-4xl text-papier">
@@ -709,7 +714,7 @@ export default function AdminPage() {
               />
               Généré avec l'aide de l'IA
             </label>
-            {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
+            {champ('Vérifié par (nom, optionnel)', 'verifie_par', 'text', [], 'noms-connus')}
 
             {edition?.type === 'roman' && (
               <div className="border border-or/20 rounded-lg px-4 py-3">

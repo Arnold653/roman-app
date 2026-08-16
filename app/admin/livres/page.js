@@ -7,6 +7,7 @@ import { extraireDocx } from '@/lib/extractionDocx'
 import { extraireEpub } from '@/lib/extractionEpub'
 import { detecterTitreLivre, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 import { extraireEnTeteMetadonnees } from '@/lib/parseEnTete'
+import { NOMS_CONNUS } from '@/lib/verificateurs'
 import { GENRES_LIVRES } from '@/lib/genres'
 
 function detecterType(nomFichier) {
@@ -159,6 +160,10 @@ export default function AdminLivresPage() {
           (nom, dataUrl) => televerserImageAdmin(form.slug, nom, dataUrl),
           (p) => setProgression(p)
         )
+        if (contenu.metadonnees) {
+          const m = contenu.metadonnees
+          setForm((f) => ({ ...f, genre: f.genre || m.genre, description: f.description || m.description }))
+        }
       } else if (type === 'epub') {
         const bytes = await fichier.arrayBuffer()
         contenu = await extraireEpub(bytes, (p) => setProgression(p))
@@ -243,6 +248,7 @@ export default function AdminLivresPage() {
         if (type === 'pdf') {
           const bytes = new Uint8Array(await fichier.arrayBuffer())
           contenu = await extrairePdfDepuisUrl(bytes, null, () => {})
+          if (contenu.metadonnees) entete = { titre: '', genre: contenu.metadonnees.genre, description: contenu.metadonnees.description }
         } else if (type === 'epub') {
           contenu = await extraireEpub(await fichier.arrayBuffer(), () => {})
         } else if (type === 'docx') {
@@ -304,7 +310,7 @@ export default function AdminLivresPage() {
     if (res.ok) charger()
   }
 
-  const champ = (label, field, type = 'text', readOnly = false, options = []) => (
+  const champ = (label, field, type = 'text', readOnly = false, options = [], listId = null) => (
     <div>
       <label className="text-xs font-mono uppercase tracking-wide text-papier/40 block mb-2">{label}</label>
       {type === 'textarea' ? (
@@ -319,7 +325,7 @@ export default function AdminLivresPage() {
           ))}
         </select>
       ) : (
-        <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)} readOnly={readOnly}
+        <input type={type} value={form[field]} onChange={(e) => update(field, e.target.value)} readOnly={readOnly} list={listId || undefined}
           className={`w-full bg-encreClair border border-ligne rounded-lg px-4 py-3 text-papier text-sm focus:outline-none focus:border-or transition-colors ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`} />
       )}
     </div>
@@ -327,6 +333,9 @@ export default function AdminLivresPage() {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-xl mx-auto lever">
+      <datalist id="noms-connus">
+        {NOMS_CONNUS.map((n) => <option key={n} value={n} />)}
+      </datalist>
       <p className="text-or text-xs font-mono uppercase tracking-[0.2em] mb-3">Encre — Admin</p>
       <h1 className="font-display text-4xl text-papier mb-2">{edition ? 'Modifier les infos du livre' : 'Publier un livre'}</h1>
       <p className="text-papier/45 text-sm mb-10 leading-relaxed">
@@ -339,7 +348,7 @@ export default function AdminLivresPage() {
       <div className="space-y-6">
         {champ('Titre du livre', 'titre')}
         {champ('Slug (identifiant dans l\'URL)', 'slug', 'text', !!edition)}
-        {champ('Auteur (optionnel)', 'auteur')}
+        {champ('Auteur (optionnel)', 'auteur', 'text', false, [], 'noms-connus')}
         {champ('Description / résumé', 'description', 'textarea')}
         {champ('Genre', 'genre', 'select', false, GENRES_LIVRES)}
 
@@ -402,7 +411,7 @@ export default function AdminLivresPage() {
             <input type="checkbox" checked={form.genere_par_ia} onChange={(e) => update('genere_par_ia', e.target.checked)} />
             Contenu généré avec l'aide de l'IA
           </label>
-          {champ('Vérifié par (nom, optionnel)', 'verifie_par')}
+          {champ('Vérifié par (nom, optionnel)', 'verifie_par', 'text', false, [], 'noms-connus')}
         </div>
 
         {edition ? (
