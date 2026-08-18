@@ -39,7 +39,7 @@ export default async function LivresPage() {
     const sectionActuelle = progressionParLivre[l.id]
     return {
       id: l.id, titre: l.titre, slug: l.slug, auteur: l.auteur, genre: l.genre, description: l.description,
-      genere_par_ia: l.genere_par_ia, verifie_par: l.verifie_par,
+      genere_par_ia: l.genere_par_ia, verifie_par: l.verifie_par, couverture_url: l.couverture_url,
       nbSections,
       nbLecteurs: lecteursParLivre[l.id]?.size || 0,
       nouveau: new Date(l.created_at).getTime() > septJours,

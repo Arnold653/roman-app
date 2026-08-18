@@ -37,7 +37,7 @@ export default async function ContesAfricainsPage() {
     const sectionActuelle = progressionParConte[c.id]
     return {
       id: c.id, titre: c.titre, slug: c.slug, auteur: c.auteur, region: c.region, genre: c.genre, description: c.description,
-      genere_par_ia: c.genere_par_ia, verifie_par: c.verifie_par,
+      genere_par_ia: c.genere_par_ia, verifie_par: c.verifie_par, couverture_url: c.couverture_url,
       nbSections,
       nbLecteurs: lecteursParConte[c.id]?.size || 0,
       nouveau: new Date(c.created_at).getTime() > septJours,
