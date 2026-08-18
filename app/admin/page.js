@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
 import { parserMarkdownRoman } from '@/lib/parseMd'
 import { titreDepuisNomFichier, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 import { GENRES_ROMANS } from '@/lib/genres'
@@ -1009,6 +1010,12 @@ export default function AdminPage() {
                 <span className="text-papier/30 text-xs font-mono shrink-0">({roman.chapitres.length})</span>
               </button>
               <div className="flex items-center gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+                <CouvertureAdmin
+                  section="roman"
+                  id={roman.id}
+                  url={roman.couverture_url}
+                  onUploaded={(url) => setRomans((rs) => rs.map((x) => (x.id === roman.id ? { ...x, couverture_url: url } : x)))}
+                />
                 <a
                   href={`/roman/${roman.slug}`}
                   target="_blank"

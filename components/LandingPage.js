@@ -22,10 +22,10 @@ const LABEL_PAR_TYPE = {
 }
 
 function CouvertureVitrine({ item }) {
-  if (item.type === 'roman') return <CouvertureGeneree id={item.id} titre={item.titre} />
-  if (item.type === 'conte-africain') return <CouvertureConteAfricain titre={item.titre} />
-  if (item.type === 'conte-enfant') return <CouvertureConteEnfant titre={item.titre} />
-  return <CouvertureLivre titre={item.titre} />
+  if (item.type === 'roman') return <CouvertureGeneree id={item.id} titre={item.titre} couvertureUrl={item.couverture_url} />
+  if (item.type === 'conte-africain') return <CouvertureConteAfricain titre={item.titre} couvertureUrl={item.couverture_url} />
+  if (item.type === 'conte-enfant') return <CouvertureConteEnfant titre={item.titre} couvertureUrl={item.couverture_url} />
+  return <CouvertureLivre titre={item.titre} couvertureUrl={item.couverture_url} />
 }
 
 const ATOUTS = [

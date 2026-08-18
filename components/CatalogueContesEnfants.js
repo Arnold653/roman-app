@@ -20,7 +20,7 @@ function CarteConte({ conte, vedette = false }) {
           vedette ? 'aspect-[16/8.5] sm:aspect-[16/7]' : 'aspect-[3/4.2]'
         }`}
       >
-        <CouvertureConteEnfant titre={conte.titre} />
+        <CouvertureConteEnfant titre={conte.titre} couvertureUrl={conte.couverture_url} />
         <div className="absolute inset-0 p-5 flex flex-col justify-between">
           <div className="flex items-center gap-2 flex-wrap">
             {conte.tranche_age && (

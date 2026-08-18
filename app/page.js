@@ -31,9 +31,9 @@ export default async function HomePage() {
     const admin = createAdminClient()
     const [{ data: romansVitrine }, { data: livresVitrine }, { data: contesAfricainsVitrine }, { data: contesEnfantsVitrine }, { data: chapitreProche }, { count: nbLecteurs }] = await Promise.all([
       supabase.from('romans').select('id, titre, slug, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(4),
-      supabase.from('livres').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
-      supabase.from('contes_africains').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
-      supabase.from('contes_enfants').select('id, titre, slug').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+      supabase.from('livres').select('id, titre, slug, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+      supabase.from('contes_africains').select('id, titre, slug, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+      supabase.from('contes_enfants').select('id, titre, slug, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
       // Client admin : la policy RLS masque les chapitres pas encore sortis à un visiteur normal,
       // ce qui cassait ce compte à rebours. On ne sélectionne que des métadonnées, jamais `contenu`.
       admin
@@ -139,9 +139,9 @@ export default async function HomePage() {
   // commencé (ou veulent autre chose).
   const [{ data: romansRecents }, { data: livresRecents }, { data: contesAfricainsRecents }, { data: contesEnfantsRecents }] = await Promise.all([
     supabase.from('romans').select('id, titre, slug, genre, couverture_url').eq('statut_visibilite', 'publie').order('created_at', { ascending: false }).limit(3),
-    supabase.from('livres').select('id, titre, slug, genre').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
-    supabase.from('contes_africains').select('id, titre, slug, region').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
-    supabase.from('contes_enfants').select('id, titre, slug, tranche_age').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+    supabase.from('livres').select('id, titre, slug, genre, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+    supabase.from('contes_africains').select('id, titre, slug, region, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
+    supabase.from('contes_enfants').select('id, titre, slug, tranche_age, couverture_url').eq('statut', 'publie').order('created_at', { ascending: false }).limit(2),
   ])
   const nouveautes = [
     ...(romansRecents || []).map((r) => ({ ...r, type: 'roman' })),
@@ -304,17 +304,14 @@ export default async function HomePage() {
                     className="relative w-full aspect-[3/4.2] rounded-lg overflow-hidden mb-2.5 border border-ligne group-hover:border-or/40 transition-colors"
                     style={{ background: item.type === 'roman' && !item.couverture_url ? `linear-gradient(150deg, ${degradeDe(item.id)[0]} 0%, ${degradeDe(item.id)[1]} 55%, ${degradeDe(item.id)[2]} 100%)` : undefined }}
                   >
-                    {item.type === 'roman' && item.couverture_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.couverture_url} alt={item.titre} className="absolute inset-0 w-full h-full object-cover" />
-                    ) : item.type === 'roman' ? (
-                      <CouvertureGeneree id={item.id} titre={item.titre} />
+                    {item.type === 'roman' ? (
+                      <CouvertureGeneree id={item.id} titre={item.titre} couvertureUrl={item.couverture_url} />
                     ) : item.type === 'conte-africain' ? (
-                      <CouvertureConteAfricain titre={item.titre} />
+                      <CouvertureConteAfricain titre={item.titre} couvertureUrl={item.couverture_url} />
                     ) : item.type === 'conte-enfant' ? (
-                      <CouvertureConteEnfant titre={item.titre} />
+                      <CouvertureConteEnfant titre={item.titre} couvertureUrl={item.couverture_url} />
                     ) : (
-                      <CouvertureLivre titre={item.titre} />
+                      <CouvertureLivre titre={item.titre} couvertureUrl={item.couverture_url} />
                     )}
                   </div>
                   <p className="font-mono text-[0.6rem] uppercase tracking-widest text-or/70 mb-0.5">{LABEL_PAR_TYPE[item.type]}</p>

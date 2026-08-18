@@ -9,7 +9,7 @@ export default async function ContesAfricainsPage() {
 
   const { data: contes } = await supabase
     .from('contes_africains')
-    .select('id, titre, slug, auteur, region, genre, description, genere_par_ia, verifie_par, created_at, contenu_extrait')
+    .select('id, titre, slug, auteur, region, genre, description, genere_par_ia, verifie_par, created_at, contenu_extrait, couverture_url')
     .eq('statut', 'publie')
     .order('created_at', { ascending: false })
 

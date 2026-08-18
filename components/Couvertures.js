@@ -1,5 +1,8 @@
-export function CouvertureGeneree({ id, titre }) {
+export function CouvertureGeneree({ id, titre, couvertureUrl }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+  if (couvertureUrl) {
+    return <img src={couvertureUrl} alt={titre} className="absolute inset-0 w-full h-full object-cover" />
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: 'linear-gradient(115deg, rgba(255,255,255,0.14) 0%, transparent 28%, transparent 72%, rgba(255,255,255,0.05) 100%)' }} />
@@ -18,8 +21,11 @@ export function CouvertureGeneree({ id, titre }) {
 // Couverture des livres (non-fiction / PDF) : plus sobre que celle des romans, avec une
 // tranche colorée en bordure gauche façon reliure, pour rester visuellement distincte
 // du rayon "Romans" au premier coup d'œil.
-export function CouvertureLivre({ titre }) {
+export function CouvertureLivre({ titre, couvertureUrl }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+  if (couvertureUrl) {
+    return <img src={couvertureUrl} alt={titre} className="absolute inset-0 w-full h-full object-cover" />
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, #26292d 0%, #17191c 60%, #0d0f12 100%)' }} />
@@ -36,8 +42,11 @@ export function CouvertureLivre({ titre }) {
 // Couverture des Contes / Histoires Africaines : palette terracotta/ocre chaude, volontairement
 // distincte du bleu-gris de Livres et du thème général, pour créer une identité visuelle propre
 // à cette section (utile pour le référencement et le partage sur TikTok/YouTube).
-export function CouvertureConteAfricain({ titre }) {
+export function CouvertureConteAfricain({ titre, couvertureUrl }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+  if (couvertureUrl) {
+    return <img src={couvertureUrl} alt={titre} className="absolute inset-0 w-full h-full object-cover" />
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: 'linear-gradient(150deg, #7a3b1e 0%, #4a2013 55%, #241009 100%)' }} />
@@ -55,8 +64,11 @@ export function CouvertureConteAfricain({ titre }) {
 // Couverture des Contes pour Enfants : palette vive et ludique (violet/turquoise/jaune),
 // pensée pour attirer l'œil d'un jeune public et se distinguer nettement des autres sections
 // plus "adulte" (Livres en bleu-gris sobre, Contes Africains en terracotta).
-export function CouvertureConteEnfant({ titre }) {
+export function CouvertureConteEnfant({ titre, couvertureUrl }) {
   const initiale = (titre || '?').trim().charAt(0).toUpperCase()
+  if (couvertureUrl) {
+    return <img src={couvertureUrl} alt={titre} className="absolute inset-0 w-full h-full object-cover" />
+  }
   return (
     <>
       <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, #5b3a9e 0%, #3a2570 55%, #1f1440 100%)' }} />

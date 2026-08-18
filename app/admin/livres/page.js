@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
@@ -470,7 +471,7 @@ export default function AdminLivresPage() {
           const sections = l.contenu_extrait?.sections || []
           return (
           <div key={l.id} className="bg-encreClair rounded-md px-4 py-3">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-1 gap-2">
               <button
                 onClick={() => basculerPliLivre(l.id)}
                 className="flex items-center gap-2 text-left min-w-0"
@@ -481,6 +482,12 @@ export default function AdminLivresPage() {
                 )}
                 <span className="text-sm text-papier/70 truncate">{l.titre}</span>
               </button>
+              <CouvertureAdmin
+                section="livre"
+                id={l.id}
+                url={l.couverture_url}
+                onUploaded={(url) => setLivres((ls) => ls.map((x) => (x.id === l.id ? { ...x, couverture_url: url } : x)))}
+              />
               <button
                 onClick={() => basculerStatut(l)}
                 className={`text-[0.65rem] font-mono uppercase tracking-wide rounded-full px-2.5 py-1 border shrink-0 ${

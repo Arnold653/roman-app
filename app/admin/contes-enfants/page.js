@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
@@ -483,7 +484,7 @@ export default function AdminContesEnfantsPage() {
           const sections = c.contenu_extrait?.sections || []
           return (
           <div key={c.id} className="bg-encreClair rounded-md px-4 py-3">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center justify-between mb-1 gap-2">
               <button
                 onClick={() => basculerPliConte(c.id)}
                 className="flex items-center gap-2 text-left min-w-0"
@@ -495,6 +496,12 @@ export default function AdminContesEnfantsPage() {
                 <span className="text-sm text-papier/70 truncate">{c.titre}</span>
                 {c.tranche_age && <span className="text-[0.65rem] font-mono text-papier/35 shrink-0">· {c.tranche_age}</span>}
               </button>
+              <CouvertureAdmin
+                section="conte-enfant"
+                id={c.id}
+                url={c.couverture_url}
+                onUploaded={(url) => setContes((cs) => cs.map((x) => (x.id === c.id ? { ...x, couverture_url: url } : x)))}
+              />
               <button
                 onClick={() => basculerStatut(c)}
                 className={`text-[0.65rem] font-mono uppercase tracking-wide rounded-full px-2.5 py-1 border shrink-0 ${

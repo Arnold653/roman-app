@@ -9,7 +9,7 @@ export default async function LivresPage() {
 
   const { data: livres } = await supabase
     .from('livres')
-    .select('id, titre, slug, auteur, genre, description, genere_par_ia, verifie_par, created_at, contenu_extrait')
+    .select('id, titre, slug, auteur, genre, description, genere_par_ia, verifie_par, created_at, contenu_extrait, couverture_url')
     .eq('statut', 'publie')
     .order('created_at', { ascending: false })
 

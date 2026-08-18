@@ -51,7 +51,7 @@ export default async function LecteursPage() {
 
   const [{ data: romans }, { data: livres }, { data: profils }] = await Promise.all([
     supabase.from('romans').select('id, titre, slug, genre, couverture_url').eq('statut_visibilite', 'publie'),
-    supabase.from('livres').select('id, titre, slug, genre').eq('statut', 'publie'),
+    supabase.from('livres').select('id, titre, slug, genre, couverture_url').eq('statut', 'publie'),
     supabase.from('profiles').select('id, pseudo, avatar_url, bio, created_at').order('created_at', { ascending: false }).limit(50),
   ])
 
