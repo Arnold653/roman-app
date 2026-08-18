@@ -474,7 +474,7 @@ export default function AdminLivresPage() {
             <div className="flex items-center justify-between mb-1 gap-2">
               <button
                 onClick={() => basculerPliLivre(l.id)}
-                className="flex items-center gap-2 text-left min-w-0"
+                className="flex items-center gap-2 text-left min-w-0 flex-1"
                 disabled={sections.length === 0}
               >
                 {sections.length > 0 && (
@@ -569,7 +569,7 @@ export default function AdminLivresPage() {
 
             <div className="flex items-center gap-3 mt-2">
               <a
-                href={`/livres/${l.slug}`}
+                href={`/livres/${l.slug}?admin=1`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-mono uppercase text-papier/40 hover:text-or transition-colors"

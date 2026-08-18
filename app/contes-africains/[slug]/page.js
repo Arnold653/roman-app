@@ -5,8 +5,9 @@ import LecteurConte from '@/components/LecteurConte'
 import BoutonDeblocage from '@/components/BoutonDeblocage'
 import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
+import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 
-export default async function ConteAfricainDetailPage({ params }) {
+export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -54,6 +55,7 @@ export default async function ConteAfricainDetailPage({ params }) {
 
   return (
     <div className="px-6 pt-16 pb-24 max-w-2xl mx-auto lever">
+      {estAdmin && searchParams?.admin && <BarreRetourAdmin href="/admin/contes-africains" />}
       <CachePourHorsLigne />
       {conte.statut !== 'publie' && (
         <p className="font-mono text-[0.65rem] uppercase tracking-widest text-grenat border border-grenat/40 rounded-full px-2.5 py-1 inline-block mb-4">

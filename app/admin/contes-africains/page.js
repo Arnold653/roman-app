@@ -477,7 +477,7 @@ export default function AdminContesAfricainsPage() {
             <div className="flex items-center justify-between mb-1 gap-2">
               <button
                 onClick={() => basculerPliConte(c.id)}
-                className="flex items-center gap-2 text-left min-w-0"
+                className="flex items-center gap-2 text-left min-w-0 flex-1"
                 disabled={sections.length === 0}
               >
                 {sections.length > 0 && (
@@ -573,7 +573,7 @@ export default function AdminContesAfricainsPage() {
 
             <div className="flex items-center gap-3 mt-2">
               <a
-                href={`/contes-africains/${c.slug}`}
+                href={`/contes-africains/${c.slug}?admin=1`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-mono uppercase text-papier/40 hover:text-[#e69742] transition-colors"

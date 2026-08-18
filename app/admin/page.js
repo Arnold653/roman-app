@@ -1003,7 +1003,7 @@ export default function AdminPage() {
             <div className="flex items-start justify-between gap-3 mb-1">
               <button
                 onClick={() => basculerPli(roman.id)}
-                className="flex items-center gap-2 text-left min-w-0"
+                className="flex items-center gap-2 text-left min-w-0 flex-1"
               >
                 <span className={`text-papier/30 text-xs transition-transform shrink-0 ${plie ? '-rotate-90' : ''}`}>▼</span>
                 <h3 className="font-display text-xl text-papier truncate">{roman.titre}</h3>
@@ -1017,7 +1017,7 @@ export default function AdminPage() {
                   onUploaded={(url) => setRomans((rs) => rs.map((x) => (x.id === roman.id ? { ...x, couverture_url: url } : x)))}
                 />
                 <a
-                  href={`/roman/${roman.slug}`}
+                  href={`/roman/${roman.slug}?admin=1`}
                   target="_blank"
                   rel="noreferrer"
                   className="text-papier/50 hover:text-or transition-colors"
@@ -1126,7 +1126,7 @@ export default function AdminPage() {
                         </span>
                         <div className="flex gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
                           <a
-                            href={`/roman/${roman.slug}?ch=${chapitre.numero}`}
+                            href={`/roman/${roman.slug}?ch=${chapitre.numero}&admin=1`}
                             target="_blank"
                             rel="noreferrer"
                             className="text-papier/40 hover:text-or transition-colors"
