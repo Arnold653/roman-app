@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
+import PartageSocial from '@/components/admin/PartageSocial'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
@@ -491,6 +492,14 @@ export default function AdminContesAfricainsPage() {
                 id={c.id}
                 url={c.couverture_url}
                 onUploaded={(url) => setContes((cs) => cs.map((x) => (x.id === c.id ? { ...x, couverture_url: url } : x)))}
+              />
+              <PartageSocial
+                type="conte-africain"
+                titre={c.titre}
+                resume={c.description}
+                region={c.region}
+                slug={c.slug}
+                couvertureUrl={c.couverture_url}
               />
               <button
                 onClick={() => basculerStatut(c)}

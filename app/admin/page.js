@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
+import PartageSocial from '@/components/admin/PartageSocial'
 import { parserMarkdownRoman } from '@/lib/parseMd'
 import { titreDepuisNomFichier, slugDepuisTitre, slugUnique } from '@/lib/detectionTitre'
 import { GENRES_ROMANS } from '@/lib/genres'
@@ -1034,6 +1035,14 @@ export default function AdminPage() {
                   id={roman.id}
                   url={roman.couverture_url}
                   onUploaded={(url) => setRomans((rs) => rs.map((x) => (x.id === roman.id ? { ...x, couverture_url: url } : x)))}
+                />
+                <PartageSocial
+                  type="roman"
+                  titre={roman.titre}
+                  resume={roman.resume}
+                  genre={roman.genre}
+                  slug={roman.slug}
+                  couvertureUrl={roman.couverture_url}
                 />
                 <a
                   href={`/roman/${roman.slug}?admin=1`}

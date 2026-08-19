@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
+import PartageSocial from '@/components/admin/PartageSocial'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
@@ -487,6 +488,14 @@ export default function AdminLivresPage() {
                 id={l.id}
                 url={l.couverture_url}
                 onUploaded={(url) => setLivres((ls) => ls.map((x) => (x.id === l.id ? { ...x, couverture_url: url } : x)))}
+              />
+              <PartageSocial
+                type="livre"
+                titre={l.titre}
+                resume={l.description}
+                genre={l.genre}
+                slug={l.slug}
+                couvertureUrl={l.couverture_url}
               />
               <button
                 onClick={() => basculerStatut(l)}

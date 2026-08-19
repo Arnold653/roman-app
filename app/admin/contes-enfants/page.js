@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { CouvertureAdmin } from '@/components/admin/CouvertureAdmin'
+import PartageSocial from '@/components/admin/PartageSocial'
 import { extrairePdfDepuisUrl } from '@/lib/extractionPdf'
 import { extraireTexteBrut } from '@/lib/extractionTexte'
 import { extraireDocx } from '@/lib/extractionDocx'
@@ -501,6 +502,14 @@ export default function AdminContesEnfantsPage() {
                 id={c.id}
                 url={c.couverture_url}
                 onUploaded={(url) => setContes((cs) => cs.map((x) => (x.id === c.id ? { ...x, couverture_url: url } : x)))}
+              />
+              <PartageSocial
+                type="conte-enfant"
+                titre={c.titre}
+                resume={c.description}
+                tranche_age={c.tranche_age}
+                slug={c.slug}
+                couvertureUrl={c.couverture_url}
               />
               <button
                 onClick={() => basculerStatut(c)}
