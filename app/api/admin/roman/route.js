@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { envoyerPush } from '@/lib/push'
+import { decidePublicationOuFile, promouvoirFileAttente } from '@/lib/fileAttenteRomans'
 import { NextResponse } from 'next/server'
 
 async function verifierAdmin() {
@@ -59,12 +60,35 @@ export async function PATCH(request) {
   }
 
   if (body.type === 'roman_statut') {
+    if (body.statut === 'publie') {
+      const decision = await decidePublicationOuFile(admin, body.forcer)
+      const { error } = await admin
+        .from('romans')
+        .update({ statut_visibilite: decision.statut_visibilite, statut: decision.statut })
+        .eq('id', body.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      return NextResponse.json({ ok: true, enFile: decision.enFile })
+    }
+
+    // Dépublication : si le roman occupait une place "en_cours", elle se libère —
+    // on promeut aussitôt le prochain roman en file, s'il y en a un.
+    const { data: romanAvant } = await admin.from('romans').select('statut').eq('id', body.id).maybeSingle()
     const { error } = await admin
       .from('romans')
-      .update({ statut_visibilite: body.statut === 'publie' ? 'publie' : 'brouillon' })
+      .update({ statut_visibilite: 'brouillon', statut: null })
       .eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (romanAvant?.statut === 'en_cours') await promouvoirFileAttente(admin)
     return NextResponse.json({ ok: true })
+  }
+
+  if (body.type === 'roman_termine') {
+    // Le roman a livré son dernier chapitre : libère sa place dans la file des 5 romans
+    // "en_cours" et promeut aussitôt le(s) suivant(s) en file, s'il y en a.
+    const { error } = await admin.from('romans').update({ statut: 'termine' }).eq('id', body.id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    const promus = await promouvoirFileAttente(admin)
+    return NextResponse.json({ ok: true, promus })
   }
 
   if (body.type === 'replanifier_roman') {
@@ -92,13 +116,14 @@ export async function PATCH(request) {
       if (erreurMaj) return NextResponse.json({ error: erreurMaj.message }, { status: 400 })
     }
 
+    const decision = await decidePublicationOuFile(admin, body.forcer)
     const { error: erreurStatut } = await admin
       .from('romans')
-      .update({ statut_visibilite: 'publie' })
+      .update({ statut_visibilite: decision.statut_visibilite, statut: decision.statut })
       .eq('id', body.id)
     if (erreurStatut) return NextResponse.json({ error: erreurStatut.message }, { status: 400 })
 
-    return NextResponse.json({ ok: true, chapitres: chapitres?.length || 0 })
+    return NextResponse.json({ ok: true, chapitres: chapitres?.length || 0, enFile: decision.enFile })
   }
 
   if (body.type === 'roman') {
@@ -146,12 +171,16 @@ export async function DELETE(request) {
     const { error } = await admin.from('chapitres').delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   } else if (type === 'roman') {
+    const { data: romanAvant } = await admin.from('romans').select('statut').eq('id', id).maybeSingle()
+
     // On supprime d'abord les chapitres liés, puis le roman
     const { error: errChap } = await admin.from('chapitres').delete().eq('roman_id', id)
     if (errChap) return NextResponse.json({ error: errChap.message }, { status: 400 })
 
     const { error: errRoman } = await admin.from('romans').delete().eq('id', id)
     if (errRoman) return NextResponse.json({ error: errRoman.message }, { status: 400 })
+
+    if (romanAvant?.statut === 'en_cours') await promouvoirFileAttente(admin)
   } else {
     return NextResponse.json({ error: 'Type inconnu' }, { status: 400 })
   }
@@ -191,6 +220,7 @@ export async function POST(request) {
         niveau_theme: body.niveau_theme || 1,
         genere_par_ia: body.genere_par_ia ?? true,
         verifie_par: body.verifie_par || null,
+        statut: null, // hors file d'attente tant qu'il n'a pas été publié explicitement
       })
       .select()
       .single()

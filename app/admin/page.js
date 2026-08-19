@@ -119,8 +119,8 @@ export default function AdminPage() {
   }
 
   async function basculerStatutRoman(roman) {
-    if (roman.statut_visibilite === 'publie') {
-      // Dépublier reste un geste instantané, sans conséquence à reprogrammer.
+    if (roman.statut_visibilite === 'publie' || roman.statut === 'a_venir') {
+      // Dépublier (ou retirer de la file d'attente) reste un geste instantané.
       const res = await fetch('/api/admin/roman', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -138,13 +138,32 @@ export default function AdminPage() {
     setRepublicationOuverte(roman.id)
   }
 
-  async function republierTelQuel(roman) {
+  async function republierTelQuel(roman, forcer = false) {
     const res = await fetch('/api/admin/roman', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: 'publie' }),
+      body: JSON.stringify({ type: 'roman_statut', id: roman.id, statut: 'publie', forcer }),
     })
-    if (res.ok) { setRepublicationOuverte(null); chargerRomans() }
+    const data = await res.json()
+    if (res.ok) {
+      setRepublicationOuverte(null)
+      setMessage(data.enFile ? 'Mis en file d\'attente — 5 romans sont déjà en cours. Sortira automatiquement dès qu\'une place se libère.' : '')
+      chargerRomans()
+    }
+  }
+
+  async function marquerRomanTermine(roman) {
+    if (!confirm(`Marquer « ${roman.titre} » comme terminé ? Ça libère sa place et fait sortir automatiquement le prochain roman en file d'attente, s'il y en a un.`)) return
+    const res = await fetch('/api/admin/roman', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'roman_termine', id: roman.id }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setMessage(data.promus?.length ? `Terminé ✓ — « ${data.promus[0].titre} » vient de sortir de la file d'attente.` : 'Terminé ✓')
+      chargerRomans()
+    }
   }
 
   // Republie ET reprogramme une nouvelle "Première" complète sur tous les chapitres du roman :
@@ -1027,11 +1046,28 @@ export default function AdminPage() {
                 <button
                   onClick={() => basculerStatutRoman(roman)}
                   className={`rounded-full px-2.5 py-1 border ${
-                    roman.statut_visibilite === 'publie' ? 'border-or/40 text-or' : 'border-papier/20 text-papier/40'
+                    roman.statut_visibilite === 'publie'
+                      ? 'border-or/40 text-or'
+                      : roman.statut === 'a_venir'
+                      ? 'border-[#e69742]/40 text-[#e69742]'
+                      : 'border-papier/20 text-papier/40'
                   }`}
                 >
-                  {roman.statut_visibilite === 'publie' ? 'Publié' : 'Brouillon'}
+                  {roman.statut_visibilite === 'publie' ? 'Publié' : roman.statut === 'a_venir' ? 'En file d\'attente' : 'Brouillon'}
                 </button>
+                {roman.statut === 'a_venir' && (
+                  <button
+                    onClick={() => republierTelQuel(roman, true)}
+                    className="text-[#e69742] hover:brightness-125"
+                  >
+                    Forcer la publication
+                  </button>
+                )}
+                {roman.statut_visibilite === 'publie' && roman.statut === 'en_cours' && (
+                  <button onClick={() => marquerRomanTermine(roman)} className="text-papier/50 hover:text-or transition-colors">
+                    Marquer terminé
+                  </button>
+                )}
                 <button onClick={() => editerRoman(roman)} className="text-papier/50 hover:text-or transition-colors">Éditer</button>
                 <button onClick={() => supprimerRoman(roman)} className="text-papier/50 hover:text-grenat transition-colors">Suppr.</button>
               </div>
