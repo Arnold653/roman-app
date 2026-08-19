@@ -41,7 +41,7 @@ export default function AdminLivresPage() {
   const [loading, setLoading] = useState(false)
   const [progression, setProgression] = useState(null)
   const [form, setForm] = useState({
-    titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true,
+    titre: '', sous_titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true,
   })
   const [fichier, setFichier] = useState(null)
   const [apercu, setApercu] = useState(null) // { contenu, sections } prêt à être envoyé
@@ -55,7 +55,7 @@ export default function AdminLivresPage() {
     setApercu(null)
     setFichier(null)
     setForm({
-      titre: livre.titre, slug: livre.slug, auteur: livre.auteur || '', description: livre.description || '',
+      titre: livre.titre, sous_titre: livre.sous_titre || '', slug: livre.slug, auteur: livre.auteur || '', description: livre.description || '',
       genre: livre.genre || '', verifie_par: livre.verifie_par || '', genere_par_ia: livre.genere_par_ia ?? true,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -63,7 +63,7 @@ export default function AdminLivresPage() {
 
   function annulerEdition() {
     setEdition(null)
-    setForm({ titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true })
+    setForm({ titre: '', sous_titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true })
     setMessage('')
   }
 
@@ -171,6 +171,9 @@ export default function AdminLivresPage() {
       } else if (type === 'docx') {
         const bytes = await fichier.arrayBuffer()
         contenu = await extraireDocx(bytes)
+        if (contenu.sousTitreDetecte) {
+          setForm((f) => ({ ...f, sous_titre: f.sous_titre || contenu.sousTitreDetecte }))
+        }
       } else {
         // .md / .txt : on détecte d'abord l'en-tête de métadonnées optionnel (titre, genre,
         // résumé) produit par les prompts ENGINE, avant de segmenter le reste du texte —
@@ -217,7 +220,7 @@ export default function AdminLivresPage() {
       setMessage(`Erreur : ${resultat.error}`)
     } else {
       setMessage(`${statutFinal === 'publie' ? 'Publié' : 'Enregistré en brouillon'} ✓ — /livres/${resultat.slug}`)
-      setForm({ titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true })
+      setForm({ titre: '', sous_titre: '', slug: '', auteur: '', description: '', genre: '', verifie_par: '', genere_par_ia: true })
       setFichier(null)
       setApercu(null)
       charger()
@@ -271,6 +274,7 @@ export default function AdminLivresPage() {
         data.append('slug', slug)
         data.append('auteur', '')
         data.append('description', entete?.description || '')
+        data.append('sous_titre', contenu.sousTitreDetecte || '')
         data.append('genre', entete?.genre || genreLot)
         data.append('genere_par_ia', 'true')
         data.append('verifie_par', '')
@@ -350,6 +354,7 @@ export default function AdminLivresPage() {
 
       <div className="space-y-6">
         {champ('Titre du livre', 'titre')}
+        {champ('Sous-titre (optionnel)', 'sous_titre')}
         {champ('Slug (identifiant dans l\'URL)', 'slug', 'text', !!edition)}
         {champ('Auteur (optionnel)', 'auteur', 'text', false, [], 'noms-connus')}
         {champ('Description / résumé', 'description', 'textarea')}

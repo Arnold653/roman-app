@@ -69,6 +69,9 @@ export default async function LivreDetailPage({ params, searchParams }) {
         </span>
       )}
       <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-2 leading-tight">{livre.titre}</h1>
+      {livre.sous_titre && (
+        <p className="font-display italic text-papier/55 text-lg md:text-xl mb-3 leading-snug">{livre.sous_titre}</p>
+      )}
       {livre.auteur && <p className="text-papier/40 font-mono text-sm mb-4">{livre.auteur}</p>}
 
       {livre.description && <p className="text-papier/60 leading-relaxed mb-6">{livre.description}</p>}

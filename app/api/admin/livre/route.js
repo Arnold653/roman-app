@@ -36,6 +36,7 @@ export async function POST(request) {
   const form = await request.formData()
 
   const titre = form.get('titre')
+  const sousTitre = form.get('sous_titre')
   const slug = form.get('slug')
   const auteur = form.get('auteur')
   const description = form.get('description')
@@ -77,7 +78,7 @@ export async function POST(request) {
   }
 
   const { error: erreurInsert } = await admin.from('livres').insert({
-    titre, slug, auteur, description, genre,
+    titre, sous_titre: sousTitre || null, slug, auteur, description, genre,
     fichier_url: urlPublique.publicUrl,
     fichier_type: fichierType,
     genere_par_ia: generePar,
@@ -124,7 +125,7 @@ export async function PATCH(request) {
     const { error } = await admin
       .from('livres')
       .update({
-        titre: body.titre, auteur: body.auteur || null, description: body.description || null, genre: body.genre || null,
+        titre: body.titre, sous_titre: body.sous_titre || null, auteur: body.auteur || null, description: body.description || null, genre: body.genre || null,
         genere_par_ia: body.genere_par_ia ?? true, verifie_par: body.verifie_par || null,
       })
       .eq('id', body.id)
