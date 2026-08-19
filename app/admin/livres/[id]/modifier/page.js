@@ -171,7 +171,7 @@ export default function ModifierLivrePage({ params }) {
                   rows={b.titre ? 1 : 4}
                   className="w-full bg-encreClair border border-ligne rounded-md px-3 py-2 text-papier text-sm leading-relaxed focus:outline-none focus:border-or transition-colors mb-2"
                 />
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   <label className="flex items-center gap-1.5 text-xs text-papier/50">
                     <input type="checkbox" checked={b.titre} onChange={(e) => modifierBloc(i, 'titre', e.target.checked)} />
                     Titre
@@ -189,6 +189,17 @@ export default function ModifierLivrePage({ params }) {
                       <option value={5}>Niveau 5 — Sous-titre</option>
                       <option value={6}>Niveau 6 — Sous-titre</option>
                     </select>
+                  )}
+                  <label className="flex items-center gap-1.5 text-xs text-papier/50">
+                    <input type="checkbox" checked={!!b.encadre} onChange={(e) => modifierBloc(i, 'encadre', e.target.checked)} />
+                    Encadré
+                  </label>
+                  {b.encadre && (
+                    <input
+                      type="text" value={b.encadreTitre || ''} onChange={(e) => modifierBloc(i, 'encadreTitre', e.target.value)}
+                      placeholder="Étiquette (ex. À retenir)"
+                      className="bg-encreClair border border-ligne rounded px-2 py-1 text-xs text-papier/70 w-44"
+                    />
                   )}
                   <button onClick={() => supprimerBloc(i)} className="text-papier/30 hover:text-grenat text-xs font-mono ml-auto">Suppr.</button>
                 </div>

@@ -129,6 +129,7 @@ export default function LecteurConte({
     .map((p) => {
       if (p.type === 'image') return `§IMAGE§${p.url}`
       if (p.type === 'tableau') return `§TABLEAU§${JSON.stringify(p.lignes)}`
+      if (p.encadre) return `§ENCADRE§${JSON.stringify({ titre: p.encadreTitre || '', texte: p.texte })}`
       if (p.citation) return `§CITATION§${p.texte}`
       return p.titre ? `§TITRE${p.niveau || 2}§${p.texte}` : p.texte
     })
@@ -149,7 +150,7 @@ export default function LecteurConte({
   const narrationUnites = tailleGrande
     ? decouperEnParagraphes(texteSection)
         .map((texte, i) => ({ texte, id: `p-${i}` }))
-        .filter((u) => !/^§(TITRE\d?|CITATION|IMAGE|TABLEAU|SEPARATEUR)§/.test(u.texte))
+        .filter((u) => !/^§(TITRE\d?|CITATION|IMAGE|TABLEAU|ENCADRE|SEPARATEUR)§/.test(u.texte))
         .map((u) => ({ ...u, texte: u.texte.replace(/\*\*(.+?)\*\*/g, '$1').replace(/#(.+?)#/g, '$1').replace(/\*(.+?)\*/g, '$1') }))
         .filter((u) => u.texte.trim().length > 0)
     : []

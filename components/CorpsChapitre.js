@@ -124,6 +124,21 @@ export default function CorpsChapitre({ texte, tailleGrande = false }) {
           )
         }
 
+        if (p.startsWith('§ENCADRE§')) {
+          let data = { titre: '', texte: '' }
+          try { data = JSON.parse(p.slice('§ENCADRE§'.length)) } catch { /* ignore */ }
+          return (
+            <div key={i} id={`p-${i}`} className="my-2 rounded-xl border border-or/25 bg-or/[0.05] px-5 py-4">
+              {data.titre && (
+                <p className="font-mono text-[0.7rem] uppercase tracking-widest text-or mb-2">{data.titre}</p>
+              )}
+              <p className="font-display italic text-papier/75 text-[1.02rem] leading-[1.75]">
+                <InlineMarkdown texte={data.texte} />
+              </p>
+            </div>
+          )
+        }
+
         if (p.startsWith('§IMAGE§')) {
           const url = p.slice('§IMAGE§'.length)
           return (
