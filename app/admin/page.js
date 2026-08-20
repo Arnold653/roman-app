@@ -1170,6 +1170,15 @@ export default function AdminPage() {
                           )}
                         </span>
                         <div className="flex gap-3 shrink-0 font-mono text-xs uppercase tracking-wide">
+                          <PartageSocial
+                            type="roman"
+                            titre={roman.titre}
+                            resume={roman.resume}
+                            genre={roman.genre}
+                            slug={roman.slug}
+                            couvertureUrl={roman.couverture_url}
+                            chapitreLabel={`Chapitre ${chapitre.numero}`}
+                          />
                           <a
                             href={`/roman/${roman.slug}?ch=${chapitre.numero}&admin=1`}
                             target="_blank"
