@@ -8,6 +8,7 @@ import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
+import SelectionPartage from '@/components/SelectionPartage'
 
 export default async function LivreDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -88,13 +89,15 @@ export default async function LivreDetailPage({ params, searchParams }) {
       {verrouille ? (
         <BoutonDeblocage livreId={livre.id} prixFcfa={livre.prix_fcfa} />
       ) : (
-        <LecteurPDF
-          url={livre.fichier_url}
-          slug={livre.slug}
-          livreId={livre.id}
-          contenuInitial={livre.contenu_extrait || null}
-          sectionInitiale={sectionInitiale}
-        />
+        <SelectionPartage type="livre" titre={livre.titre} slug={livre.slug} couvertureUrl={livre.couverture_url}>
+          <LecteurPDF
+            url={livre.fichier_url}
+            slug={livre.slug}
+            livreId={livre.id}
+            contenuInitial={livre.contenu_extrait || null}
+            sectionInitiale={sectionInitiale}
+          />
+        </SelectionPartage>
       )}
 
       {!verrouille && livre.mode_monetisation === 'pourboire' && (

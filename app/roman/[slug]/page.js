@@ -12,6 +12,7 @@ import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
+import SelectionPartage from '@/components/SelectionPartage'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -227,7 +228,9 @@ export default async function RomanPage({ params, searchParams }) {
               <div className={courant.titre ? 'mb-8' : 'mb-8 mt-2'}>
                 <LectureAudio texte={courant.contenu} titre={courant.titre} />
               </div>
-              <CorpsChapitre texte={courant.contenu} />
+              <SelectionPartage type="roman" titre={roman.titre} slug={roman.slug} couvertureUrl={roman.couverture_url}>
+                <CorpsChapitre texte={courant.contenu} />
+              </SelectionPartage>
 
               {courant.citation_fin && (
                 <p className="mt-12 font-display italic text-xl text-papier/60 border-l-2 border-or/50 pl-5">

@@ -7,6 +7,7 @@ import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
+import SelectionPartage from '@/components/SelectionPartage'
 
 export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -91,16 +92,18 @@ export default async function ConteAfricainDetailPage({ params, searchParams }) 
       {verrouille ? (
         <BoutonDeblocage conteAfricainId={conte.id} prixFcfa={conte.prix_fcfa} />
       ) : (
-        <LecteurConte
-          url={conte.fichier_url}
-          slug={conte.slug}
-          contenuId={conte.id}
-          contenuInitial={conte.contenu_extrait || null}
-          sectionInitiale={sectionInitiale}
-          baseApi="/api/contes-africains"
-          tableProgression="lecture_progress_contes_africains"
-          colonneId="conte_id"
-        />
+        <SelectionPartage type="conte-africain" titre={conte.titre} slug={conte.slug} couvertureUrl={conte.couverture_url}>
+          <LecteurConte
+            url={conte.fichier_url}
+            slug={conte.slug}
+            contenuId={conte.id}
+            contenuInitial={conte.contenu_extrait || null}
+            sectionInitiale={sectionInitiale}
+            baseApi="/api/contes-africains"
+            tableProgression="lecture_progress_contes_africains"
+            colonneId="conte_id"
+          />
+        </SelectionPartage>
       )}
 
       {!verrouille && conte.mode_monetisation === 'pourboire' && (

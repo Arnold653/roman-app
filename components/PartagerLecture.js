@@ -11,9 +11,10 @@ const CHEMIN_PAR_TYPE = {
 }
 
 // Bouton de partage affiché sur les pages de lecture elles-mêmes (pas l'admin) : génère le même
-// visuel (titre + genre + éventuel chapitre, jamais le contenu du texte — aucun risque de
-// spoiler) et ouvre directement la fenêtre de partage native du téléphone. Si le partage natif
-// de fichier n'est pas supporté par le navigateur, repli sur un simple téléchargement de l'image.
+// visuel (titre + genre + éventuel chapitre, sans le contenu du texte) et ouvre directement la
+// fenêtre de partage native du téléphone. Pour partager un passage précis avec son texte, voir
+// SelectionPartage.js (sélection manuelle par le lecteur). Si le partage natif de fichier n'est
+// pas supporté par le navigateur, repli sur un simple téléchargement de l'image.
 export default function PartagerLecture({ type, titre, genre, region, tranche_age, slug, couvertureUrl, chapitreLabel }) {
   const [enCours, setEnCours] = useState(false)
 

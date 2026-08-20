@@ -7,6 +7,7 @@ import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
+import SelectionPartage from '@/components/SelectionPartage'
 
 export default async function ConteEnfantDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -91,17 +92,19 @@ export default async function ConteEnfantDetailPage({ params, searchParams }) {
       {verrouille ? (
         <BoutonDeblocage conteEnfantId={conte.id} prixFcfa={conte.prix_fcfa} />
       ) : (
-        <LecteurConte
-          url={conte.fichier_url}
-          slug={conte.slug}
-          contenuId={conte.id}
-          contenuInitial={conte.contenu_extrait || null}
-          sectionInitiale={sectionInitiale}
-          baseApi="/api/contes-enfants"
-          tableProgression="lecture_progress_contes_enfants"
-          colonneId="conte_id"
-          tailleGrande
-        />
+        <SelectionPartage type="conte-enfant" titre={conte.titre} slug={conte.slug} couvertureUrl={conte.couverture_url}>
+          <LecteurConte
+            url={conte.fichier_url}
+            slug={conte.slug}
+            contenuId={conte.id}
+            contenuInitial={conte.contenu_extrait || null}
+            sectionInitiale={sectionInitiale}
+            baseApi="/api/contes-enfants"
+            tableProgression="lecture_progress_contes_enfants"
+            colonneId="conte_id"
+            tailleGrande
+          />
+        </SelectionPartage>
       )}
 
       {!verrouille && conte.mode_monetisation === 'pourboire' && (
