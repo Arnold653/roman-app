@@ -32,7 +32,7 @@ function genererLegende({ type, titre, resume, genre, region, tranche_age, lien,
 // Bouton "Partager" : génère un vrai visuel téléchargeable (titre + genre + éventuel chapitre
 // incrustés dans l'image, avec l'appel à l'action) plus une légende assortie — rien n'est publié
 // automatiquement, Life télécharge et poste elle-même sur Facebook/Instagram.
-export default function PartageSocial({ type, titre, resume, genre, region, tranche_age, slug, couvertureUrl, chapitreLabel }) {
+export default function PartageSocial({ type, titre, resume, genre, region, tranche_age, slug, couvertureUrl, chapitreLabel, compact }) {
   const [ouvert, setOuvert] = useState(false)
   const [copie, setCopie] = useState(false)
   const [pret, setPret] = useState(false)
@@ -63,8 +63,12 @@ export default function PartageSocial({ type, titre, resume, genre, region, tran
 
   return (
     <div className="shrink-0">
-      <button onClick={() => setOuvert((v) => !v)} className="text-papier/50 hover:text-or transition-colors">
-        Partager
+      <button
+        onClick={() => setOuvert((v) => !v)}
+        className={compact ? 'text-papier/40 hover:text-or transition-colors' : 'text-papier/50 hover:text-or transition-colors'}
+        title="Partager sur Facebook/Instagram"
+      >
+        {compact ? '🔗' : 'Partager'}
       </button>
       {ouvert && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={() => setOuvert(false)}>

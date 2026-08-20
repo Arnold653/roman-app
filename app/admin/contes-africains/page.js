@@ -575,7 +575,19 @@ export default function AdminContesAfricainsPage() {
             {!plie && sections.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2 mb-1">
                 {sections.map((s, i) => (
-                  <span key={i} className="font-mono text-[0.65rem] text-papier/50 border border-ligne rounded-full px-2 py-1">{s.pilLabel}</span>
+                  <span key={i} className="flex items-center gap-1 font-mono text-[0.65rem] text-papier/50 border border-ligne rounded-full pl-2 pr-1 py-1">
+                    {s.pilLabel}
+                    <PartageSocial
+                      compact
+                      type="conte-africain"
+                      titre={c.titre}
+                      resume={c.description}
+                      region={c.region}
+                      slug={c.slug}
+                      couvertureUrl={c.couverture_url}
+                      chapitreLabel={s.blocs?.[0]?.texte || s.pilLabel}
+                    />
+                  </span>
                 ))}
               </div>
             )}
