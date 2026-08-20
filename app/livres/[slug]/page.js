@@ -7,6 +7,7 @@ import BoutonDeblocage from '@/components/BoutonDeblocage'
 import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
+import PartagerLecture from '@/components/PartagerLecture'
 
 export default async function LivreDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -78,6 +79,10 @@ export default async function LivreDetailPage({ params, searchParams }) {
 
       <div className="mb-8">
         <BadgeTransparence generePar={livre.genere_par_ia} verifiePar={livre.verifie_par} />
+      </div>
+
+      <div className="mb-8">
+        <PartagerLecture type="livre" titre={livre.titre} genre={livre.genre} slug={livre.slug} couvertureUrl={livre.couverture_url} />
       </div>
 
       {verrouille ? (

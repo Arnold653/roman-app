@@ -6,6 +6,7 @@ import BoutonDeblocage from '@/components/BoutonDeblocage'
 import BoutonPourboire from '@/components/BoutonPourboire'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
+import PartagerLecture from '@/components/PartagerLecture'
 
 export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -81,6 +82,10 @@ export default async function ConteAfricainDetailPage({ params, searchParams }) 
 
       <div className="mb-8">
         <BadgeTransparence generePar={conte.genere_par_ia} verifiePar={conte.verifie_par} />
+      </div>
+
+      <div className="mb-8">
+        <PartagerLecture type="conte-africain" titre={conte.titre} region={conte.region} slug={conte.slug} couvertureUrl={conte.couverture_url} />
       </div>
 
       {verrouille ? (

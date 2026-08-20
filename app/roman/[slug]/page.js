@@ -11,6 +11,7 @@ import BadgeTransparence from '@/components/BadgeTransparence'
 import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
+import PartagerLecture from '@/components/PartagerLecture'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -209,6 +210,16 @@ export default async function RomanPage({ params, searchParams }) {
           {courant.titre && (
             <h2 className="font-display text-3xl text-papier mb-4">{courant.titre}</h2>
           )}
+          <div className="mb-6">
+            <PartagerLecture
+              type="roman"
+              titre={roman.titre}
+              genre={roman.genre}
+              slug={roman.slug}
+              couvertureUrl={roman.couverture_url}
+              chapitreLabel={`Chapitre ${courant.numero}`}
+            />
+          </div>
           {verrouille ? (
             <BoutonDeblocage chapitreId={courant.id} prixFcfa={courant.prix_fcfa} publieLe={courant.publie_le} />
           ) : (
