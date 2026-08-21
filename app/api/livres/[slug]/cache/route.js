@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
@@ -5,7 +6,13 @@ import { NextResponse } from 'next/server'
 // lectures suivantes (par n'importe quel visiteur) n'aient plus à re-parser le PDF côté client
 // à chaque ouverture. On n'écrase jamais un cache déjà présent : le premier calcul fait foi,
 // et on le vide volontairement depuis l'admin si le moteur d'extraction est amélioré plus tard.
+// Nécessite une session connectée (même règle que /image juste à côté) : sans ça, n'importe qui
+// pourrait empoisonner le cache d'un livre pas encore lu avec un contenu arbitraire.
 export async function POST(request, { params }) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
+
   const body = await request.json()
   if (!body?.contenu) return NextResponse.json({ error: 'Contenu manquant' }, { status: 400 })
 

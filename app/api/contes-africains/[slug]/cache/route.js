@@ -1,7 +1,14 @@
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+// Voir app/api/livres/[slug]/cache/route.js pour le détail du fonctionnement et pourquoi
+// l'authentification est nécessaire ici (empêcher l'empoisonnement du cache).
 export async function POST(request, { params }) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Non connecté' }, { status: 401 })
+
   const body = await request.json()
   if (!body?.contenu) return NextResponse.json({ error: 'Contenu manquant' }, { status: 400 })
 
