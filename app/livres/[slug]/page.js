@@ -11,6 +11,7 @@ import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
 import AvisSection from '@/components/AvisSection'
+import { enregistrerActiviteLecture } from '@/lib/serieLecture'
 
 export default async function LivreDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -22,6 +23,7 @@ export default async function LivreDetailPage({ params, searchParams }) {
 
   const { data: livre } = await supabase.from('livres').select('*').eq('slug', params.slug).single()
   const estAdmin = user.email === process.env.ADMIN_EMAIL
+  await enregistrerActiviteLecture(createAdminClient(), user.id)
 
   if (!livre || (livre.statut !== 'publie' && !estAdmin)) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Livre introuvable.</div>

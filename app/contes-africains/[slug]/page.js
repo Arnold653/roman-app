@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import BadgeTransparence from '@/components/BadgeTransparence'
 import LecteurConte from '@/components/LecteurConte'
 import BoutonDeblocage from '@/components/BoutonDeblocage'
@@ -10,6 +11,7 @@ import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
 import AvisSection from '@/components/AvisSection'
+import { enregistrerActiviteLecture } from '@/lib/serieLecture'
 
 export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -21,6 +23,7 @@ export default async function ConteAfricainDetailPage({ params, searchParams }) 
 
   const { data: conte } = await supabase.from('contes_africains').select('*').eq('slug', params.slug).single()
   const estAdmin = user.email === process.env.ADMIN_EMAIL
+  await enregistrerActiviteLecture(createAdminClient(), user.id)
 
   if (!conte || (conte.statut !== 'publie' && !estAdmin)) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Conte introuvable.</div>

@@ -5,6 +5,7 @@ import CompteAReboursPremiere from '@/components/CompteAReboursPremiere'
 import LandingPage from '@/components/LandingPage'
 import { CouvertureGeneree, CouvertureLivre, CouvertureConteAfricain, CouvertureConteEnfant } from '@/components/Couvertures'
 import { degradeDe } from '@/lib/couvertures'
+import { calculerSerie } from '@/lib/serieLecture'
 
 // Un seul endroit pour faire correspondre chaque type de contenu à son URL et son étiquette —
 // évite de dupliquer ce mapping partout où les 4 types se mélangent sur cette page (Nouveautés,
@@ -192,6 +193,17 @@ export default async function HomePage() {
   // sections directement — pas juste noyées dans "Pour commencer" au milieu des romans/livres.
   const aDejaDesContes = reprendre.some((r) => r.type === 'Conte' || r.type === 'Histoire')
 
+  let serieLecture = 0
+  if (user) {
+    const { data: joursActifs } = await admin
+      .from('activite_lecture')
+      .select('jour')
+      .eq('user_id', user.id)
+      .order('jour', { ascending: false })
+      .limit(400)
+    serieLecture = calculerSerie((joursActifs ?? []).map((j) => j.jour))
+  }
+
   return (
     <div className="px-6 pt-16 pb-24 max-w-6xl mx-auto">
       <RangStories />
@@ -207,6 +219,11 @@ export default async function HomePage() {
             ? 'Une sortie approche — en attendant, de quoi commencer.'
             : 'De quoi commencer aujourd\'hui.'}
         </p>
+        {serieLecture > 1 && (
+          <p className="font-mono text-xs uppercase tracking-wide text-or/80 mt-3">
+            🔥 {serieLecture} jours de suite
+          </p>
+        )}
       </div>
 
       {premieresAVenir.length > 0 && (

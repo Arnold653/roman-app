@@ -15,6 +15,7 @@ import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
 import AvisSection from '@/components/AvisSection'
+import { enregistrerActiviteLecture } from '@/lib/serieLecture'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -38,6 +39,7 @@ export default async function RomanPage({ params, searchParams }) {
   }
 
   const admin = createAdminClient()
+  await enregistrerActiviteLecture(admin, user?.id)
 
   // Tous les chapitres déjà écrits, publiés ou non — sert à savoir si le 1er chapitre est encore
   // à venir ("Roman en Première") et à calculer le prix de l'accès anticipé groupé.
