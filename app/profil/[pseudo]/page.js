@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import BoutonSuivre from '@/components/BoutonSuivre'
+import BlocParrainage from '@/components/BlocParrainage'
 
 function AvatarMonogramme({ pseudo }) {
   const initiale = (pseudo || '?').trim().charAt(0).toUpperCase()
@@ -23,9 +24,10 @@ export default async function ProfilPage({ params }) {
     return <div className="px-6 py-24 text-center text-papier/50 font-mono text-sm">Lecteur introuvable.</div>
   }
 
-  const [{ count: abonnes }, { count: abonnements }] = await Promise.all([
+  const [{ count: abonnes }, { count: abonnements }, { count: filleuls }] = await Promise.all([
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('suivi_id', profil.id),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profil.id),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('parraine_par', profil.id),
   ])
 
   const { data: commentaires } = await supabase
@@ -80,6 +82,12 @@ export default async function ProfilPage({ params }) {
         <span className="text-papier/60"><b className="text-papier">{abonnes ?? 0}</b> abonnés</span>
         <span className="text-papier/60"><b className="text-papier">{abonnements ?? 0}</b> abonnements</span>
       </div>
+
+      {estMonProfil && (
+        <div className="mt-8">
+          <BlocParrainage pseudo={profil.pseudo} nbFilleuls={filleuls ?? 0} />
+        </div>
+      )}
 
       {progression && progression.length > 0 && (
         <>

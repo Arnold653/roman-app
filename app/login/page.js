@@ -37,10 +37,11 @@ export default function LoginPage() {
     } else {
       const pseudoNettoye = pseudo.trim().replace(/\s+/g, ' ')
       if (!pseudoNettoye) { setMessage("Le nom d'utilisateur ne peut pas être vide."); return }
+      const parrain = new URLSearchParams(window.location.search).get('ref')
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { pseudo: pseudoNettoye } },
+        options: { data: { pseudo: pseudoNettoye, parraine_par_pseudo: parrain || null } },
       })
       if (error) setMessage(error.message)
       else setMessage('Compte créé. Vérifie ta boîte mail pour confirmer.')
