@@ -9,6 +9,7 @@ import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
+import BoutonFavori from '@/components/BoutonFavori'
 
 export default async function LivreDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -82,8 +83,9 @@ export default async function LivreDetailPage({ params, searchParams }) {
         <BadgeTransparence generePar={livre.genere_par_ia} verifiePar={livre.verifie_par} />
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 flex items-center gap-4">
         <PartagerLecture type="livre" titre={livre.titre} genre={livre.genre} slug={livre.slug} couvertureUrl={livre.couverture_url} />
+        <BoutonFavori type="livre" id={livre.id} />
       </div>
 
       {verrouille ? (

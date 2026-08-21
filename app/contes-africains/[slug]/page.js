@@ -8,6 +8,7 @@ import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
+import BoutonFavori from '@/components/BoutonFavori'
 
 export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -85,8 +86,9 @@ export default async function ConteAfricainDetailPage({ params, searchParams }) 
         <BadgeTransparence generePar={conte.genere_par_ia} verifiePar={conte.verifie_par} />
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 flex items-center gap-4">
         <PartagerLecture type="conte-africain" titre={conte.titre} region={conte.region} slug={conte.slug} couvertureUrl={conte.couverture_url} />
+        <BoutonFavori type="conte-africain" id={conte.id} />
       </div>
 
       {verrouille ? (

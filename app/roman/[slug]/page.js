@@ -13,6 +13,7 @@ import CachePourHorsLigne from '@/components/CachePourHorsLigne'
 import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
+import BoutonFavori from '@/components/BoutonFavori'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -171,6 +172,9 @@ export default async function RomanPage({ params, searchParams }) {
           <h1 className="font-display text-4xl md:text-5xl text-papier mt-4 mb-3 leading-tight">{roman.titre}</h1>
           <p className="text-papier/50 leading-relaxed mb-4">{roman.resume}</p>
           <BadgeTransparence generePar={roman.genere_par_ia} verifiePar={roman.verifie_par} />
+          <div className="mt-3">
+            <BoutonFavori type="roman" id={roman.id} />
+          </div>
         </div>
       ) : (
         <div className="mb-10 lever flex items-baseline justify-between gap-4">

@@ -68,6 +68,7 @@ export default function RootLayout({ children }) {
                 <p className="text-papier/30 mb-4">Explorer</p>
                 <ul className="space-y-3 text-papier/55">
                   <li><a href="/" className="hover:text-or transition-colors">Accueil</a></li>
+                  <li><a href="/recherche" className="hover:text-or transition-colors">Rechercher</a></li>
                   <li><a href="/romans" className="hover:text-or transition-colors">Romans</a></li>
                   <li><a href="/fil" className="hover:text-or transition-colors">Fil</a></li>
                   <li><a href="/communaute" className="hover:text-or transition-colors">Communauté</a></li>
@@ -79,6 +80,7 @@ export default function RootLayout({ children }) {
                 <p className="text-papier/30 mb-4">Compte</p>
                 <ul className="space-y-3 text-papier/55">
                   <LienCompteFooter />
+                  <li><a href="/favoris" className="hover:text-or transition-colors">Favoris</a></li>
                   <li><a href="/messages" className="hover:text-or transition-colors">Messages</a></li>
                 </ul>
               </div>

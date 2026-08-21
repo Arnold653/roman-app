@@ -21,6 +21,15 @@ export default function LoginPage() {
     e.preventDefault()
     setMessage('')
 
+    if (mode === 'oubli') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reinitialiser-mot-de-passe`,
+      })
+      if (error) setMessage(error.message)
+      else setMessage('Un lien de réinitialisation vient de partir sur cette adresse (regarde aussi tes spams).')
+      return
+    }
+
     if (mode === 'connexion') {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setMessage(error.message)
@@ -48,7 +57,7 @@ export default function LoginPage() {
   return (
     <div className="px-6 pt-20 pb-24 max-w-sm mx-auto lever">
       <h1 className="font-display text-4xl text-papier mb-8">
-        {mode === 'connexion' ? 'Content de te revoir' : 'Rejoindre Encre'}
+        {mode === 'connexion' ? 'Content de te revoir' : mode === 'oubli' ? 'Mot de passe oublié' : 'Rejoindre Encre'}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -61,22 +70,32 @@ export default function LoginPage() {
           type: 'email', required: true, placeholder: 'Adresse email',
           value: email, onChange: (e) => setEmail(e.target.value),
         })}
-        {champ({
-          type: 'password', required: true, placeholder: 'Mot de passe',
-          value: password, onChange: (e) => setPassword(e.target.value),
-        })}
+        {mode !== 'oubli' &&
+          champ({
+            type: 'password', required: true, placeholder: 'Mot de passe',
+            value: password, onChange: (e) => setPassword(e.target.value),
+          })}
         <button
           type="submit"
           className="w-full bg-or text-encre font-medium rounded-lg px-3 py-3 hover:brightness-110 transition-all"
         >
-          {mode === 'connexion' ? 'Se connecter' : "S'inscrire"}
+          {mode === 'connexion' ? 'Se connecter' : mode === 'oubli' ? 'Envoyer le lien' : "S'inscrire"}
         </button>
       </form>
 
       {message && <p className="text-sm text-papier/50 mt-4 font-mono">{message}</p>}
 
+      {mode === 'connexion' && (
+        <button
+          onClick={() => { setMode('oubli'); setMessage('') }}
+          className="text-sm text-papier/40 hover:text-or mt-3 underline underline-offset-4 transition-colors block"
+        >
+          Mot de passe oublié ?
+        </button>
+      )}
+
       <button
-        onClick={() => setMode(mode === 'connexion' ? 'inscription' : 'connexion')}
+        onClick={() => { setMode(mode === 'connexion' ? 'inscription' : 'connexion'); setMessage('') }}
         className="text-sm text-papier/40 hover:text-or mt-8 underline underline-offset-4 transition-colors"
       >
         {mode === 'connexion' ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
