@@ -14,6 +14,7 @@ import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
+import AvisSection from '@/components/AvisSection'
 import { degradeDe } from '@/lib/couvertures'
 
 export default async function RomanPage({ params, searchParams }) {
@@ -290,6 +291,8 @@ export default async function RomanPage({ params, searchParams }) {
       ) : (
         <p className="text-papier/35 font-mono text-sm">Premier chapitre à venir bientôt.</p>
       )}
+
+      <AvisSection type="roman" id={roman.id} />
     </div>
   )
 }

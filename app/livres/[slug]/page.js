@@ -10,6 +10,7 @@ import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
+import AvisSection from '@/components/AvisSection'
 
 export default async function LivreDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -118,6 +119,8 @@ export default async function LivreDetailPage({ params, searchParams }) {
           <BoutonDeblocage livreId={livre.id} prixFcfa={livre.prix_fcfa} libelle="le contenu bonus" />
         )
       )}
+
+      <AvisSection type="livre" id={livre.id} />
     </div>
   )
 }

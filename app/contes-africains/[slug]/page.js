@@ -9,6 +9,7 @@ import BarreRetourAdmin from '@/components/BarreRetourAdmin'
 import PartagerLecture from '@/components/PartagerLecture'
 import SelectionPartage from '@/components/SelectionPartage'
 import BoutonFavori from '@/components/BoutonFavori'
+import AvisSection from '@/components/AvisSection'
 
 export default async function ConteAfricainDetailPage({ params, searchParams }) {
   const supabase = createClient()
@@ -124,6 +125,8 @@ export default async function ConteAfricainDetailPage({ params, searchParams }) 
           <BoutonDeblocage conteAfricainId={conte.id} prixFcfa={conte.prix_fcfa} libelle="le contenu bonus" />
         )
       )}
+
+      <AvisSection type="conte-africain" id={conte.id} />
     </div>
   )
 }
