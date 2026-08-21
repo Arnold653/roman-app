@@ -646,8 +646,11 @@ export default function AdminPage() {
       <a href="/admin/contes-africains" className="inline-block text-xs font-mono uppercase tracking-wide text-[#e69742] hover:brightness-125 mb-4 mr-4">
         Gérer les contes africains →
       </a>
-      <a href="/admin/contes-enfants" className="inline-block text-xs font-mono uppercase tracking-wide text-[#ffd166] hover:brightness-125 mb-4">
+      <a href="/admin/contes-enfants" className="inline-block text-xs font-mono uppercase tracking-wide text-[#ffd166] hover:brightness-125 mb-4 mr-4">
         Gérer les contes enfants →
+      </a>
+      <a href="/admin/stats" className="inline-block text-xs font-mono uppercase tracking-wide text-papier/50 hover:text-or transition-colors mb-4">
+        Statistiques →
       </a>
       <div className="flex gap-2 mb-4">
         <button
