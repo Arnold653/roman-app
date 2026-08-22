@@ -9,4 +9,5 @@ create table if not exists activite_lecture (
 
 alter table activite_lecture enable row level security;
 
+drop policy if exists "Activite de lecture privee" on activite_lecture;
 create policy "Activite de lecture privee" on activite_lecture for all using (auth.uid() = user_id);

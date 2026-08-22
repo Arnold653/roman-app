@@ -28,6 +28,8 @@ create unique index if not exists avis_user_conte_enfant_idx on avis (user_id, c
 
 alter table avis enable row level security;
 
+drop policy if exists "Avis visibles par tous" on avis;
 create policy "Avis visibles par tous" on avis for select using (true);
+drop policy if exists "Lecteur gere son propre avis" on avis;
 create policy "Lecteur gere son propre avis" on avis
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

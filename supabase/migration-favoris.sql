@@ -25,5 +25,6 @@ create unique index if not exists favoris_user_conte_enfant_idx on favoris (user
 
 alter table favoris enable row level security;
 
+drop policy if exists "Lecteur gere ses propres favoris" on favoris;
 create policy "Lecteur gere ses propres favoris" on favoris
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

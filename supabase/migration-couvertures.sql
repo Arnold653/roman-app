@@ -11,6 +11,7 @@ insert into storage.buckets (id, name, public)
 values ('couvertures', 'couvertures', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Couvertures visibles par tous" on storage.objects;
 create policy "Couvertures visibles par tous"
 on storage.objects for select
 using (bucket_id = 'couvertures');
