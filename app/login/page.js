@@ -44,7 +44,12 @@ export default function LoginPage() {
         options: { data: { pseudo: pseudoNettoye, parraine_par_pseudo: parrain || null } },
       })
       if (error) setMessage(error.message)
-      else setMessage('Compte créé. Vérifie ta boîte mail pour confirmer.')
+      else {
+        setMessage('Compte créé. Vérifie ta boîte mail pour confirmer.')
+        // Best-effort : ne fonctionne que si une session existe déjà juste après signUp() (donc
+        // pas si la confirmation par email est obligatoire côté Supabase) — sinon, silencieux.
+        fetch('/api/auth/bienvenue', { method: 'POST' }).catch(() => {})
+      }
     }
   }
 

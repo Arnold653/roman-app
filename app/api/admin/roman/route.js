@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { envoyerPush } from '@/lib/push'
+import { envoyerEmailNouveauChapitre } from '@/lib/email'
 import { decidePublicationOuFile, promouvoirFileAttente } from '@/lib/fileAttenteRomans'
 import { NextResponse } from 'next/server'
 
@@ -283,9 +284,18 @@ export async function POST(request) {
       }))
       await admin.from('notifications').insert(notifs)
       await Promise.all(
-        lecteurs.map((l) =>
-          envoyerPush(l.user_id, roman.titre, `Nouveau chapitre disponible.`, `/roman/${roman.slug}?ch=${body.numero}`)
-        )
+        lecteurs.map(async (l) => {
+          await envoyerPush(l.user_id, roman.titre, `Nouveau chapitre disponible.`, `/roman/${roman.slug}?ch=${body.numero}`)
+          const { data: compte } = await admin.auth.admin.getUserById(l.user_id)
+          if (compte?.user?.email) {
+            await envoyerEmailNouveauChapitre({
+              to: compte.user.email,
+              romanTitre: roman.titre,
+              numero: body.numero,
+              lien: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://app.encres.vercel.app'}/roman/${roman.slug}?ch=${body.numero}`,
+            })
+          }
+        })
       )
     }
   }
