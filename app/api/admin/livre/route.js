@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { envoyerEmailNouveauTitre, tousLesEmails } from '@/lib/email'
 import { NextResponse } from 'next/server'
 
 async function verifierAdmin() {
@@ -108,8 +109,22 @@ export async function PATCH(request) {
   }
 
   if (body.type === 'statut') {
-    const { error } = await admin.from('livres').update({ statut: body.statut === 'publie' ? 'publie' : 'brouillon' }).eq('id', body.id)
+    const nouveauStatut = body.statut === 'publie' ? 'publie' : 'brouillon'
+    const { data: livreAvant } = await admin.from('livres').select('titre, slug, email_annonce_envoye').eq('id', body.id).maybeSingle()
+
+    const { error } = await admin.from('livres').update({ statut: nouveauStatut }).eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    if (nouveauStatut === 'publie' && livreAvant && !livreAvant.email_annonce_envoye) {
+      const destinataires = await tousLesEmails(admin)
+      await envoyerEmailNouveauTitre({
+        type: 'livre',
+        titre: livreAvant.titre,
+        lien: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://app.encres.vercel.app'}/livres/${livreAvant.slug}`,
+        destinataires,
+      })
+      await admin.from('livres').update({ email_annonce_envoye: true }).eq('id', body.id)
+    }
     return NextResponse.json({ ok: true })
   }
 

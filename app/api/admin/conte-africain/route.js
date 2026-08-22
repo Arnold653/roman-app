@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { envoyerEmailNouveauTitre, tousLesEmails } from '@/lib/email'
 import { NextResponse } from 'next/server'
 
 async function verifierAdmin() {
@@ -106,8 +107,22 @@ export async function PATCH(request) {
   }
 
   if (body.type === 'statut') {
-    const { error } = await admin.from('contes_africains').update({ statut: body.statut === 'publie' ? 'publie' : 'brouillon' }).eq('id', body.id)
+    const nouveauStatut = body.statut === 'publie' ? 'publie' : 'brouillon'
+    const { data: avant } = await admin.from('contes_africains').select('titre, slug, email_annonce_envoye').eq('id', body.id).maybeSingle()
+
+    const { error } = await admin.from('contes_africains').update({ statut: nouveauStatut }).eq('id', body.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+    if (nouveauStatut === 'publie' && avant && !avant.email_annonce_envoye) {
+      const destinataires = await tousLesEmails(admin)
+      await envoyerEmailNouveauTitre({
+        type: 'conte-africain',
+        titre: avant.titre,
+        lien: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://app.encres.vercel.app'}/contes-africains/${avant.slug}`,
+        destinataires,
+      })
+      await admin.from('contes_africains').update({ email_annonce_envoye: true }).eq('id', body.id)
+    }
     return NextResponse.json({ ok: true })
   }
 
